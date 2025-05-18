@@ -1,52 +1,39 @@
 package com.fourstars.FourStars.domain;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fourstars.FourStars.util.SecurityUtil;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name = "users")
-public class User {
+@Table(name = "roles")
+public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank(message = "Tên không được để trống")
-    @Size(max = 100, message = "Tên không được vượt quá 100 ký tự")
+    @NotBlank(message = "Tên vai trò không được để trống")
+    @Size(max = 100, message = "Tên vai trò không được vượt quá 100 ký tự")
     private String name;
 
-    @NotBlank(message = "Email không được để trống")
-    @Email(message = "Email không hợp lệ")
-    @Size(max = 255, message = "Email không được vượt quá 255 ký tự")
-    private String email;
+    @Size(max = 255, message = "Mô tả không được vượt quá 255 ký tự")
+    private String description;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 8, max = 100, message = "Mật khẩu phải có từ 8 đến 100 ký tự")
-    private String password;
-
-    private boolean active = true;
-
-    @Min(value = 0, message = "Điểm phải lớn hơn hoặc bằng 0")
-    private int point = 0;
-
-    @Column(columnDefinition = "MEDIUMTEXT")
-    private String refreshToken;
+    private boolean active;
 
     @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss a", timezone = "GMT+7")
     private Instant createdAt;
@@ -58,9 +45,9 @@ public class User {
 
     private String updatedBy;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id")
-    private Role role;
+    @OneToMany(mappedBy = "role", fetch = FetchType.LAZY)
+    @JsonIgnore
+    List<User> users;
 
     @PrePersist
     public void handleBeforeCreate() {
@@ -77,4 +64,5 @@ public class User {
                 : "";
         this.updatedAt = Instant.now();
     }
+
 }
