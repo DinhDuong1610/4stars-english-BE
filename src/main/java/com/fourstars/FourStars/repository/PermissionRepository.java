@@ -9,6 +9,7 @@ import com.fourstars.FourStars.domain.Permission;
 
 @Repository
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
+    // Permission findById(long id);
 
     boolean existsByModuleAndApiPathAndMethod(String module, String apiPath, String method);
 

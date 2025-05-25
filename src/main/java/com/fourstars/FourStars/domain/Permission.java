@@ -85,4 +85,9 @@ public class Permission {
                 : "";
         this.updatedAt = Instant.now();
     }
+
+    public Permission orElseThrow(Object object) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'orElseThrow'");
+    }
 }

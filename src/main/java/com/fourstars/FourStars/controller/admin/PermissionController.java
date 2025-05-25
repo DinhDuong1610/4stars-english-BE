@@ -2,6 +2,8 @@ package com.fourstars.FourStars.controller.admin;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,5 +31,12 @@ public class PermissionController {
     public ResponseEntity<Permission> create(@Valid @RequestBody Permission permission)
             throws IdInvalidException, DuplicateResourceException {
         return ResponseEntity.status(HttpStatus.CREATED).body(this.permissionService.create(permission));
+    }
+
+    @GetMapping("/permissions/{id}")
+    @ApiMessage("Fetch a permission by ID")
+    public ResponseEntity<Permission> getPermissionById(@PathVariable long id) {
+        Permission permission = this.permissionService.fetchById(id);
+        return ResponseEntity.ok(permission);
     }
 }

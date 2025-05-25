@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import com.fourstars.FourStars.domain.Permission;
 import com.fourstars.FourStars.repository.PermissionRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class PermissionService {
@@ -26,6 +27,11 @@ public class PermissionService {
         }
 
         return this.permissionRepository.save(permission);
+    }
+
+    public Permission fetchById(long id) {
+        return this.permissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Permission not found with id: " + id));
     }
 
 }
