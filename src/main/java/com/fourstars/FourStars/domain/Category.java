@@ -1,16 +1,18 @@
 package com.fourstars.FourStars.domain;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.constant.CategoryType;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,9 +23,9 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -31,38 +33,37 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "users")
+@Table(name = "categories")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class Category {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank(message = "Name cannot be blank")
-    @Size(max = 100, message = "Name cannot exceed 100 characters")
+    @NotBlank(message = "Category name cannot be blank")
+    @Size(min = 2, max = 150, message = "Category name must be between 2 and 150 characters")
+    @Column(nullable = false, length = 150)
     private String name;
 
-    @NotBlank(message = "Email cannot be blank")
-    @Email(message = "Email is not valid")
-    @Size(max = 255, message = "Email cannot exceed 255 characters")
-    private String email;
-
-    @NotBlank(message = "Password cannot be blank")
-    @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
-    private String password;
-
-    private boolean active = true;
-
-    @Min(value = 0, message = "Point must be greater than or equal to 0")
-    private int point = 0;
-
+    @Size(max = 16777215, message = "Description is too long")
     @Column(columnDefinition = "MEDIUMTEXT")
-    private String refreshToken;
+    private String description;
 
-    @Column(name = "created_at")
+    @NotNull(message = "Category type cannot be null")
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private CategoryType type;
+
+    @NotNull(message = "Order index cannot be null")
+    @Min(value = 0, message = "Order index must be greater than or equal to 0")
+    @Column(name = "order_index")
+    private int orderIndex;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss a", timezone = "GMT+7")
     private Instant createdAt;
 
@@ -76,33 +77,25 @@ public class User {
     @Column(name = "updated_by")
     private String updatedBy;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id")
-    private Role role;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "badge_id", referencedColumnName = "id")
-    private Badge badge;
+    @JoinColumn(name = "parent_id")
+    private Category parentCategory;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "parentCategory", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
-    private List<UserVocabulary> userVocabularies;
+    private List<Category> subCategories;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Subscription> subscriptions;
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Vocabulary> vocabularies;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Post> posts;
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Grammar> grammars;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Comment> comments;
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Article> articles;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Like> likes;
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Video> videos;
 
     @PrePersist
     public void handleBeforeCreate() {
@@ -119,4 +112,5 @@ public class User {
                 : "";
         this.updatedAt = Instant.now();
     }
+
 }
