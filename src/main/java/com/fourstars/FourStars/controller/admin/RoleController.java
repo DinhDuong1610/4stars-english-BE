@@ -46,4 +46,15 @@ public class RoleController {
         RoleResponseDTO role = roleService.fetchRoleById(id);
         return ResponseEntity.ok(role);
     }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing role")
+    public ResponseEntity<RoleResponseDTO> updateRole(
+            @PathVariable long id,
+            @Valid @RequestBody RoleRequestDTO roleRequestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        RoleResponseDTO updatedRole = roleService.updateRole(id, roleRequestDTO);
+
+        return ResponseEntity.ok(updatedRole);
+    }
 }

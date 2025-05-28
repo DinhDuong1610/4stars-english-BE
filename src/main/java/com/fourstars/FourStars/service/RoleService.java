@@ -93,4 +93,31 @@ public class RoleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
     }
 
+    @Transactional
+    public RoleResponseDTO updateRole(long id, RoleRequestDTO roleRequestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        Role roleDB = roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+
+        if (!roleDB.getName().equals(roleRequestDTO.getName())
+                && roleRepository.existsByNameAndIdNot(roleRequestDTO.getName(), id)) {
+            throw new DuplicateResourceException(
+                    "Role name '" + roleRequestDTO.getName() + "' already exists for another role.");
+        }
+
+        roleDB.setName(roleRequestDTO.getName());
+        roleDB.setDescription(roleRequestDTO.getDescription());
+        roleDB.setActive(roleRequestDTO.isActive());
+
+        if (roleRequestDTO.getPermissionIds() != null) {
+            List<Permission> newPermissions = permissionRepository.findAllById(roleRequestDTO.getPermissionIds());
+            roleDB.setPermissions(newPermissions); // Ghi đè danh sách permissions cũ
+        } else {
+            roleDB.getPermissions().clear();
+        }
+
+        Role updatedRole = roleRepository.save(roleDB);
+
+        return convertToRoleResponseDTO(updatedRole);
+    }
 }
