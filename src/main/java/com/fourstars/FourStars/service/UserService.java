@@ -166,4 +166,19 @@ public class UserService {
         userRepository.delete(userToDelete);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable) {
+        Page<User> pageUser = userRepository.findAll(pageable);
+        List<UserResponseDTO> userDTOs = pageUser.getContent().stream()
+                .map(this::convertToUserResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageUser.getTotalPages(),
+                pageUser.getTotalElements());
+        return new ResultPaginationDTO<>(meta, userDTOs);
+    }
+
 }

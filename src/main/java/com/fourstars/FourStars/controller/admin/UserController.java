@@ -66,4 +66,11 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping
+    @ApiMessage("Fetch all users with pagination")
+    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(Pageable pageable) {
+        ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable);
+        return ResponseEntity.ok(result);
+    }
 }
