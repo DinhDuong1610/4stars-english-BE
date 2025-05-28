@@ -15,6 +15,7 @@ import com.fourstars.FourStars.domain.response.badge.BadgeResponseDTO;
 import com.fourstars.FourStars.repository.BadgeRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
@@ -85,6 +86,34 @@ public class BadgeService {
 
         Badge updatedBadge = badgeRepository.save(badgeDB);
         return convertToBadgeResponseDTO(updatedBadge);
+    }
+
+    @Transactional
+    public void deleteBadge(long id) throws ResourceNotFoundException, ResourceInUseException {
+        Badge badgeToDelete = badgeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Badge not found with id: " + id));
+
+        if (userRepository.existsByBadgeId(id)) {
+            throw new ResourceInUseException(
+                    "Badge '" + badgeToDelete.getName() + "' is currently assigned to users and cannot be deleted.");
+        }
+
+        badgeRepository.delete(badgeToDelete);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<BadgeResponseDTO> fetchAllBadges(Pageable pageable) {
+        Page<Badge> pageBadge = badgeRepository.findAll(pageable);
+        List<BadgeResponseDTO> badgeDTOs = pageBadge.getContent().stream()
+                .map(this::convertToBadgeResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageBadge.getTotalPages(),
+                pageBadge.getTotalElements());
+        return new ResultPaginationDTO<>(meta, badgeDTOs);
     }
 
 }

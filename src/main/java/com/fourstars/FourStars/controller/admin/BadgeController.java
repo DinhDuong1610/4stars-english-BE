@@ -18,6 +18,7 @@ import com.fourstars.FourStars.domain.response.badge.BadgeResponseDTO;
 import com.fourstars.FourStars.service.BadgeService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.validation.Valid;
@@ -55,5 +56,20 @@ public class BadgeController {
             throws ResourceNotFoundException, DuplicateResourceException {
         BadgeResponseDTO updatedBadge = badgeService.updateBadge(id, badgeRequestDTO);
         return ResponseEntity.ok(updatedBadge);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a badge")
+    public ResponseEntity<Void> deleteBadge(@PathVariable long id)
+            throws ResourceNotFoundException, ResourceInUseException {
+        badgeService.deleteBadge(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all badges with pagination")
+    public ResponseEntity<ResultPaginationDTO<BadgeResponseDTO>> getAllBadges(Pageable pageable) {
+        ResultPaginationDTO<BadgeResponseDTO> result = badgeService.fetchAllBadges(pageable);
+        return ResponseEntity.ok(result);
     }
 }
