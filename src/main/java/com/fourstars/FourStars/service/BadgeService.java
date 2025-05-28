@@ -66,4 +66,25 @@ public class BadgeService {
         return convertToBadgeResponseDTO(badge);
     }
 
+    @Transactional
+    public BadgeResponseDTO updateBadge(long id, BadgeRequestDTO badgeRequestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        Badge badgeDB = badgeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Badge not found with id: " + id));
+
+        if (!badgeDB.getName().equalsIgnoreCase(badgeRequestDTO.getName()) &&
+                badgeRepository.existsByNameAndIdNot(badgeRequestDTO.getName(), id)) {
+            throw new DuplicateResourceException(
+                    "Badge name '" + badgeRequestDTO.getName() + "' already exists for another badge.");
+        }
+
+        badgeDB.setName(badgeRequestDTO.getName());
+        badgeDB.setImage(badgeRequestDTO.getImage());
+        badgeDB.setPoint(badgeRequestDTO.getPoint());
+        badgeDB.setDescription(badgeRequestDTO.getDescription());
+
+        Badge updatedBadge = badgeRepository.save(badgeDB);
+        return convertToBadgeResponseDTO(updatedBadge);
+    }
+
 }

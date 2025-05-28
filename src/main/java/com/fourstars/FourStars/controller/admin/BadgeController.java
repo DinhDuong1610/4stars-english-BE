@@ -46,4 +46,14 @@ public class BadgeController {
         BadgeResponseDTO badge = badgeService.fetchBadgeById(id);
         return ResponseEntity.ok(badge);
     }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing badge")
+    public ResponseEntity<BadgeResponseDTO> updateBadge(
+            @PathVariable long id,
+            @Valid @RequestBody BadgeRequestDTO badgeRequestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        BadgeResponseDTO updatedBadge = badgeService.updateBadge(id, badgeRequestDTO);
+        return ResponseEntity.ok(updatedBadge);
+    }
 }
