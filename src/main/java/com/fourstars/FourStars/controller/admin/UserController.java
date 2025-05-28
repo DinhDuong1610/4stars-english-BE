@@ -48,4 +48,15 @@ public class UserController {
         UserResponseDTO user = userService.fetchUserById(id);
         return ResponseEntity.ok(user);
     }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing user")
+    public ResponseEntity<UserResponseDTO> updateUser(
+            @PathVariable long id,
+            @Valid @RequestBody UpdateUserRequestDTO updateUserRequestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+
+        UserResponseDTO updatedUser = userService.updateUser(id, updateUserRequestDTO);
+        return ResponseEntity.ok(updatedUser);
+    }
 }

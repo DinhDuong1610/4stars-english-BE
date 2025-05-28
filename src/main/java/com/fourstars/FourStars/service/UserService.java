@@ -115,4 +115,47 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
+    @Transactional
+    public UserResponseDTO updateUser(long id, UpdateUserRequestDTO requestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        User userDB = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        if (requestDTO.getEmail() != null && !userDB.getEmail().equalsIgnoreCase(requestDTO.getEmail())) {
+            if (userRepository.existsByEmailAndIdNot(requestDTO.getEmail(), id)) {
+                throw new DuplicateResourceException(
+                        "Email '" + requestDTO.getEmail() + "' already exists for another user.");
+            }
+            userDB.setEmail(requestDTO.getEmail());
+        }
+
+        if (requestDTO.getName() != null) {
+            userDB.setName(requestDTO.getName());
+        }
+        if (requestDTO.getActive() != null) {
+            userDB.setActive(requestDTO.getActive());
+        }
+        if (requestDTO.getPoint() != null) {
+            userDB.setPoint(requestDTO.getPoint());
+        }
+
+        if (requestDTO.getRoleId() != null) {
+            Role role = roleRepository.findById(requestDTO.getRoleId())
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Role not found with id: " + requestDTO.getRoleId()));
+            userDB.setRole(role);
+        }
+
+        if (requestDTO.getBadgeId() != null) {
+            Badge badge = badgeRepository.findById(requestDTO.getBadgeId())
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Badge not found with id: " + requestDTO.getBadgeId()));
+            userDB.setBadge(badge);
+        }
+
+        User updatedUser = userRepository.save(userDB);
+
+        return convertToUserResponseDTO(updatedUser);
+    }
+
 }
