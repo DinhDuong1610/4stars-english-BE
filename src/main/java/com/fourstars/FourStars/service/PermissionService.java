@@ -1,9 +1,14 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Permission;
+import com.fourstars.FourStars.domain.Role;
 import com.fourstars.FourStars.repository.PermissionRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
@@ -65,6 +70,24 @@ public class PermissionService {
         permissionDB.setMethod(permissionDetails.getMethod());
 
         return this.permissionRepository.save(permissionDB);
+    }
+
+    @Transactional
+    public void delete(long id) throws ResourceNotFoundException {
+        Permission permissionToDelete = this.permissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Permission not found with id: " + id));
+
+        if (permissionToDelete.getRoles() != null && !permissionToDelete.getRoles().isEmpty()) {
+            List<Role> associatedRoles = new ArrayList<>(permissionToDelete.getRoles());
+            for (Role role : associatedRoles) {
+                if (role.getPermissions() != null) {
+                    role.getPermissions().remove(permissionToDelete);
+                }
+            }
+            permissionToDelete.getRoles().clear();
+        }
+
+        this.permissionRepository.delete(permissionToDelete);
     }
 
 }
