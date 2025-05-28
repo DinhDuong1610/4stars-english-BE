@@ -1,6 +1,5 @@
 package com.fourstars.FourStars.util.error;
 
-import java.io.File;
 import java.util.List;
 import java.util.stream.Collectors;
 

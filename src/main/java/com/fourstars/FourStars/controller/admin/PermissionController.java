@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.admin;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.Permission;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.permission.PermissionResponseDTO;
 import com.fourstars.FourStars.service.PermissionService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.error.BadRequestException;
@@ -68,5 +71,12 @@ public class PermissionController {
     public ResponseEntity<Void> delete(@PathVariable("id") long id) throws ResourceNotFoundException {
         this.permissionService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/permissions")
+    @ApiMessage("Fetch all permissions")
+    public ResponseEntity<ResultPaginationDTO<PermissionResponseDTO>> getAll(Pageable pageable) {
+        ResultPaginationDTO<PermissionResponseDTO> result = this.permissionService.fetchAll(pageable);
+        return ResponseEntity.ok(result);
     }
 }

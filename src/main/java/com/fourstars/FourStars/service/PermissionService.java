@@ -1,14 +1,18 @@
 package com.fourstars.FourStars.service;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Permission;
 import com.fourstars.FourStars.domain.Role;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.permission.PermissionResponseDTO;
 import com.fourstars.FourStars.repository.PermissionRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
@@ -90,4 +94,31 @@ public class PermissionService {
         this.permissionRepository.delete(permissionToDelete);
     }
 
+    public ResultPaginationDTO<PermissionResponseDTO> fetchAll(Pageable pageable) {
+        Page<Permission> pagePermission = this.permissionRepository.findAll(pageable);
+
+        List<PermissionResponseDTO> permissionDTOs = pagePermission.getContent().stream()
+                .map(this::convertToPermissionResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pagePermission.getTotalPages(),
+                pagePermission.getTotalElements());
+
+        return new ResultPaginationDTO<>(meta, permissionDTOs);
+    }
+
+    @Transactional(readOnly = true)
+    private PermissionResponseDTO convertToPermissionResponseDTO(Permission permission) {
+        PermissionResponseDTO dto = new PermissionResponseDTO();
+        dto.setId(permission.getId());
+        dto.setName(permission.getName());
+        dto.setApiPath(permission.getApiPath());
+        dto.setMethod(permission.getMethod());
+        dto.setModule(permission.getModule());
+
+        return dto;
+    }
 }

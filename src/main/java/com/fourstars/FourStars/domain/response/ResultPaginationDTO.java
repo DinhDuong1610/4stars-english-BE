@@ -1,5 +1,7 @@
 package com.fourstars.FourStars.domain.response;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,9 +11,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ResultPaginationDTO {
+public class ResultPaginationDTO<T> {
     private Meta meta;
-    private Object result;
+    private List<T> result;
 
     @Getter
     @Setter
@@ -23,5 +25,4 @@ public class ResultPaginationDTO {
         private int pages;
         private long total;
     }
-
 }
