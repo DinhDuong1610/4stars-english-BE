@@ -1,11 +1,16 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fourstars.FourStars.domain.Badge;
 import com.fourstars.FourStars.domain.Role;
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.auth.ResCreateUserDTO;
 import com.fourstars.FourStars.domain.response.user.UserResponseDTO;
 import com.fourstars.FourStars.repository.BadgeRepository;
 import com.fourstars.FourStars.repository.RoleRepository;
@@ -24,7 +31,7 @@ import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final BadgeRepository badgeRepository;
@@ -179,6 +186,135 @@ public class UserService {
                 pageUser.getTotalPages(),
                 pageUser.getTotalElements());
         return new ResultPaginationDTO<>(meta, userDTOs);
+    }
+
+    @Transactional(readOnly = true)
+    public User getUserEntityByEmail(String email) throws ResourceNotFoundException {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean emailExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        if (user.getRole() != null) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getName().toUpperCase()));
+        }
+
+        return new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                user.isActive(),
+                true,
+                true,
+                true,
+                authorities);
+    }
+
+    @Transactional(readOnly = true)
+    public User handleGetUsername(String email) {
+        return userRepository.findByEmail(email).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isEmailExist(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
+    @Transactional
+    public User handleCreateUser(User user) {
+        if (user.getRole() != null && user.getRole().getId() != 0) {
+            Role role = this.roleRepository.findById(user.getRole().getId())
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Role not found with ID: " + user.getRole().getId()));
+            user.setRole(role);
+        } else if (user.getRole() != null && user.getRole().getName() != null) {
+            Role role = this.roleRepository.findByName(user.getRole().getName())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Role not found with name: " + user.getRole().getName()));
+            user.setRole(role);
+        }
+
+        return this.userRepository.save(user);
+    }
+
+    @Transactional
+    public void updateUserToken(String refreshToken, String email) throws ResourceNotFoundException {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found with email: " + email + " for updating token."));
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
+    }
+
+    @Transactional(readOnly = true)
+    public User getUserByRefreshTokenAndEmail(String refreshToken, String email) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null && user.getRefreshToken() != null && user.getRefreshToken().equals(refreshToken)) {
+            return user;
+        }
+        return null;
+    }
+
+    public ResCreateUserDTO convertToResCreateUserDTO(User user) {
+        if (user == null)
+            return null;
+        ResCreateUserDTO res = new ResCreateUserDTO();
+        res.setId(user.getId());
+        res.setEmail(user.getEmail());
+        res.setName(user.getName());
+        res.setCreatedAt(user.getCreatedAt());
+        return res;
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponseDTO fetchUserResponseById(long id) throws ResourceNotFoundException {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        return convertToUserResponseDTO(user);
+    }
+
+    @Transactional
+    public UserResponseDTO registerNewUser(RegisterRequestDTO registerDTO)
+            throws DuplicateResourceException, ResourceNotFoundException {
+        if (userRepository.existsByEmail(registerDTO.getEmail())) {
+            throw new DuplicateResourceException("Email '" + registerDTO.getEmail() + "' already exists.");
+        }
+
+        User newUser = new User();
+        newUser.setName(registerDTO.getName());
+        newUser.setEmail(registerDTO.getEmail());
+
+        newUser.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
+        newUser.setActive(true);
+        newUser.setPoint(0);
+
+        Long roleIdToAssign = registerDTO.getRoleId();
+        Role assignedRole;
+
+        if (roleIdToAssign == null) {
+            assignedRole = roleRepository.findByName("USER")
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Default role 'USER' not found. Please ensure it exists in the database."));
+        } else {
+
+            assignedRole = roleRepository.findById(roleIdToAssign)
+                    .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + roleIdToAssign));
+        }
+        newUser.setRole(assignedRole);
+
+        User savedUser = userRepository.save(newUser);
+
+        return convertToUserResponseDTO(savedUser);
     }
 
 }

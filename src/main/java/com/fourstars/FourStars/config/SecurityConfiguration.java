@@ -7,9 +7,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,8 +29,10 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
 
 @Configuration
+@EnableWebSecurity
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
+
     @Value("${fourstars.jwt.base64-secret}")
     private String jwtKey;
 
@@ -37,11 +42,20 @@ public class SecurityConfiguration {
     }
 
     @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
             CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
-
         String[] whiteList = {
-                "/**",
+                "/api/v1/auth/login",
+                "/api/v1/auth/register",
+                "/api/v1/auth/refresh",
+                // Thêm các endpoint public khác nếu có (ví dụ: Swagger UI, health check)
+                // "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
         };
 
         http
@@ -50,16 +64,20 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
-
-                                // .anyRequest().authenticated())
-                                .anyRequest().permitAll())
-                .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults())
-                        .authenticationEntryPoint(customAuthenticationEntryPoint))
-                // .exceptionHandling(
-                // exceptions -> exceptions
-                // .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
-                // .accessDeniedHandler(new BearerTokenAccessDeniedHandler()))
-
+                                // .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN") // Ví dụ,
+                                // hoặc dùng
+                                // hasRole("ADMIN") nếu
+                                // prefix là "ROLE_"
+                                .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2 // oauth2 ở đây là OAuth2ResourceServerConfigurer
+                        .jwt(jwt -> jwt // jwt ở đây là JwtConfigurer
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter()) // Gọi trên JwtConfigurer
+                                                                                          // (jwt)
+                        )
+                        .authenticationEntryPoint(customAuthenticationEntryPoint) // Gọi trên
+                                                                                  // OAuth2ResourceServerConfigurer
+                                                                                  // (oauth2)
+                )
                 .formLogin(f -> f.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
@@ -69,8 +87,11 @@ public class SecurityConfiguration {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("");
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("permission");
+        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); // Thường thì prefix là "ROLE_"
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("permission"); // Đảm bảo claim 'permission' chứa
+                                                                           // roles/authorities
+        // Nếu claim 'permission' chứa authorities không có prefix "ROLE_", thì
+        // setAuthorityPrefix("")
 
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
