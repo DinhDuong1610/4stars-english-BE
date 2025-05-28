@@ -120,4 +120,19 @@ public class RoleService {
 
         return convertToRoleResponseDTO(updatedRole);
     }
+
+    @Transactional
+    public void deleteRole(long id) throws ResourceNotFoundException, DuplicateResourceException {
+        Role roleToDelete = roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+
+        if (roleToDelete.getUsers() != null && !roleToDelete.getUsers().isEmpty()) {
+            throw new DuplicateResourceException(
+                    "Role '" + roleToDelete.getName() + "' is currently assigned to users and cannot be deleted.");
+        }
+
+        roleToDelete.getPermissions().clear();
+
+        roleRepository.delete(roleToDelete);
+    }
 }

@@ -57,4 +57,12 @@ public class RoleController {
 
         return ResponseEntity.ok(updatedRole);
     }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a role")
+    public ResponseEntity<Void> deleteRole(@PathVariable long id)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        roleService.deleteRole(id);
+        return ResponseEntity.noContent().build();
+    }
 }
