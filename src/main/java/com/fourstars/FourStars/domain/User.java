@@ -47,10 +47,13 @@ public class User {
     @NotBlank(message = "Email cannot be blank")
     @Email(message = "Email is not valid")
     @Size(max = 255, message = "Email cannot exceed 255 characters")
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
     @NotBlank(message = "Password cannot be blank")
     @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
+    @Column(nullable = false, length = 100)
+    @JsonIgnore
     private String password;
 
     private boolean active = true;
