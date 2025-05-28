@@ -158,4 +158,12 @@ public class UserService {
         return convertToUserResponseDTO(updatedUser);
     }
 
+    @Transactional
+    public void deleteUser(long id) throws ResourceNotFoundException {
+        User userToDelete = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        userRepository.delete(userToDelete);
+    }
+
 }

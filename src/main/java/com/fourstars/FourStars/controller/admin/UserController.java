@@ -59,4 +59,11 @@ public class UserController {
         UserResponseDTO updatedUser = userService.updateUser(id, updateUserRequestDTO);
         return ResponseEntity.ok(updatedUser);
     }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a user")
+    public ResponseEntity<Void> deleteUser(@PathVariable long id) throws ResourceNotFoundException {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
 }
