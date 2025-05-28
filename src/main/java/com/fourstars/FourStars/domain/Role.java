@@ -87,4 +87,14 @@ public class Role {
         this.updatedAt = Instant.now();
     }
 
+    public void addPermission(Permission permission) {
+        this.permissions.add(permission);
+        permission.getRoles().add(this);
+    }
+
+    public void removePermission(Permission permission) {
+        this.permissions.remove(permission);
+        permission.getRoles().remove(this);
+    }
+
 }

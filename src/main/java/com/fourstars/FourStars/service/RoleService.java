@@ -1,0 +1,83 @@
+package com.fourstars.FourStars.service;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fourstars.FourStars.domain.Permission;
+import com.fourstars.FourStars.domain.Role;
+import com.fourstars.FourStars.domain.request.role.RoleRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.permission.PermissionResponseDTO;
+import com.fourstars.FourStars.domain.response.role.RoleResponseDTO;
+import com.fourstars.FourStars.repository.PermissionRepository;
+import com.fourstars.FourStars.repository.RoleRepository;
+import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+@Service
+public class RoleService {
+    private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository; // Inject PermissionRepository
+
+    public RoleService(RoleRepository roleRepository, PermissionRepository permissionRepository) {
+        this.roleRepository = roleRepository;
+        this.permissionRepository = permissionRepository;
+    }
+
+    private RoleResponseDTO convertToRoleResponseDTO(Role role) {
+        RoleResponseDTO dto = new RoleResponseDTO();
+        dto.setId(role.getId());
+        dto.setName(role.getName());
+        dto.setDescription(role.getDescription());
+        dto.setActive(role.isActive());
+        dto.setCreatedAt(role.getCreatedAt());
+        dto.setUpdatedAt(role.getUpdatedAt());
+        dto.setCreatedBy(role.getCreatedBy());
+        dto.setUpdatedBy(role.getUpdatedBy());
+
+        if (role.getPermissions() != null) {
+            List<PermissionResponseDTO> permissionDTOs = role.getPermissions().stream()
+                    .map(permission -> {
+                        PermissionResponseDTO pDto = new PermissionResponseDTO();
+                        pDto.setId(permission.getId());
+                        pDto.setName(permission.getName());
+                        pDto.setApiPath(permission.getApiPath());
+                        pDto.setMethod(permission.getMethod());
+                        pDto.setModule(permission.getModule());
+                        return pDto;
+                    })
+                    .collect(Collectors.toList());
+            dto.setPermissions(permissionDTOs);
+        }
+
+        return dto;
+    }
+
+    @Transactional
+    public RoleResponseDTO createRole(RoleRequestDTO roleRequestDTO) throws DuplicateResourceException {
+        if (roleRepository.existsByName(roleRequestDTO.getName())) {
+            throw new DuplicateResourceException("Role name '" + roleRequestDTO.getName() + "' already exists.");
+        }
+
+        Role role = new Role();
+        role.setName(roleRequestDTO.getName());
+        role.setDescription(roleRequestDTO.getDescription());
+        role.setActive(roleRequestDTO.isActive());
+
+        if (roleRequestDTO.getPermissionIds() != null && !roleRequestDTO.getPermissionIds().isEmpty()) {
+            List<Permission> permissions = permissionRepository.findAllById(roleRequestDTO.getPermissionIds());
+            role.setPermissions(permissions);
+        }
+
+        Role savedRole = roleRepository.save(role);
+        return convertToRoleResponseDTO(savedRole);
+    }
+
+}
