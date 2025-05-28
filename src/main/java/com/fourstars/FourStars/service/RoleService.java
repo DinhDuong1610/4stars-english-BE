@@ -135,4 +135,19 @@ public class RoleService {
 
         roleRepository.delete(roleToDelete);
     }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<RoleResponseDTO> fetchAllRoles(Pageable pageable) {
+        Page<Role> pageRole = roleRepository.findAll(pageable);
+        List<RoleResponseDTO> roleDTOs = pageRole.getContent().stream()
+                .map(this::convertToRoleResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageRole.getTotalPages(),
+                pageRole.getTotalElements());
+        return new ResultPaginationDTO<>(meta, roleDTOs);
+    }
 }

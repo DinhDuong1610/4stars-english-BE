@@ -65,4 +65,11 @@ public class RoleController {
         roleService.deleteRole(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping
+    @ApiMessage("Fetch all roles with pagination")
+    public ResponseEntity<ResultPaginationDTO<RoleResponseDTO>> getAllRoles(Pageable pageable) {
+        ResultPaginationDTO<RoleResponseDTO> result = roleService.fetchAllRoles(pageable);
+        return ResponseEntity.ok(result);
+    }
 }
