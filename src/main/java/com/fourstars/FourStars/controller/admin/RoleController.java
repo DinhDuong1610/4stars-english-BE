@@ -40,4 +40,10 @@ public class RoleController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdRole);
     }
 
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a role by its ID")
+    public ResponseEntity<RoleResponseDTO> getRoleById(@PathVariable long id) throws ResourceNotFoundException {
+        RoleResponseDTO role = roleService.fetchRoleById(id);
+        return ResponseEntity.ok(role);
+    }
 }

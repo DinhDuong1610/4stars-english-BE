@@ -80,4 +80,17 @@ public class RoleService {
         return convertToRoleResponseDTO(savedRole);
     }
 
+    @Transactional(readOnly = true)
+    public RoleResponseDTO fetchRoleById(long id) throws ResourceNotFoundException {
+        Role role = roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+        return convertToRoleResponseDTO(role);
+    }
+
+    @Transactional(readOnly = true)
+    public Role getRoleEntityById(long id) throws ResourceNotFoundException {
+        return roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+    }
+
 }
