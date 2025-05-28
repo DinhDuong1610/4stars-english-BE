@@ -102,4 +102,17 @@ public class UserService {
         return convertToUserResponseDTO(savedUser);
     }
 
+    @Transactional(readOnly = true)
+    public UserResponseDTO fetchUserById(long id) throws ResourceNotFoundException {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        return convertToUserResponseDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public User getUserEntityById(long id) throws ResourceNotFoundException {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+    }
+
 }

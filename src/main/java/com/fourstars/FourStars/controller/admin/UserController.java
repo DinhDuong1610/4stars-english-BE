@@ -41,4 +41,11 @@ public class UserController {
         UserResponseDTO createdUser = userService.createUser(createUserRequestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a user by their ID")
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable long id) throws ResourceNotFoundException {
+        UserResponseDTO user = userService.fetchUserById(id);
+        return ResponseEntity.ok(user);
+    }
 }
