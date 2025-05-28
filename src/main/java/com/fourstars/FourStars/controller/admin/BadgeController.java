@@ -39,4 +39,11 @@ public class BadgeController {
         BadgeResponseDTO createdBadge = badgeService.createBadge(badgeRequestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdBadge);
     }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a badge by its ID")
+    public ResponseEntity<BadgeResponseDTO> getBadgeById(@PathVariable long id) throws ResourceNotFoundException {
+        BadgeResponseDTO badge = badgeService.fetchBadgeById(id);
+        return ResponseEntity.ok(badge);
+    }
 }

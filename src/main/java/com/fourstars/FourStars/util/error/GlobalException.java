@@ -125,4 +125,13 @@ public class GlobalException {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
     }
 
+    @ExceptionHandler(ResourceInUseException.class)
+    public ResponseEntity<RestResponse<Object>> handleResourceInUseException(ResourceInUseException ex) {
+        RestResponse<Object> res = new RestResponse<>();
+        res.setStatusCode(HttpStatus.CONFLICT.value());
+        res.setError(HttpStatus.CONFLICT.getReasonPhrase());
+        res.setMessage(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(res);
+    }
+
 }

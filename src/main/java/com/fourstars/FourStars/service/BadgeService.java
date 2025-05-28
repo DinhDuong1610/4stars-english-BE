@@ -59,4 +59,11 @@ public class BadgeService {
         return convertToBadgeResponseDTO(savedBadge);
     }
 
+    @Transactional(readOnly = true)
+    public BadgeResponseDTO fetchBadgeById(long id) throws ResourceNotFoundException {
+        Badge badge = badgeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Badge not found with id: " + id));
+        return convertToBadgeResponseDTO(badge);
+    }
+
 }
