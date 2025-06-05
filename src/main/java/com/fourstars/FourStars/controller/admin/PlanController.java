@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,6 +17,7 @@ import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.service.PlanService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.validation.Valid;
 
@@ -42,6 +44,14 @@ public class PlanController {
     public ResponseEntity<PlanResponseDTO> findById(@PathVariable("id") long id) {
         PlanResponseDTO plan = this.planService.findById(id);
 
+        return ResponseEntity.ok(plan);
+    }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing plan")
+    public ResponseEntity<PlanResponseDTO> update(@PathVariable("id") long id,
+            @RequestBody PlanRequestDTO planRequestDTO) throws ResourceNotFoundException, DuplicateResourceException {
+        PlanResponseDTO plan = this.planService.update(id, planRequestDTO);
         return ResponseEntity.ok(plan);
     }
 }

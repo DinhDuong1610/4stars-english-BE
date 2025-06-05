@@ -66,4 +66,33 @@ public class PlanService {
 
         return this.convertToPlanResponseDTO(plan);
     }
+
+    @Transactional(readOnly = true)
+    public Plan getPlanEntityById(long id) throws ResourceNotFoundException {
+        return planRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
+    }
+
+    @Transactional
+    public PlanResponseDTO update(long id, PlanRequestDTO planRequestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException {
+
+        Plan planDB = this.getPlanEntityById(id);
+
+        if (!planDB.getName().equalsIgnoreCase(planRequestDTO.getName())) {
+            if (this.planRepository.existsByNameAndIdNot(planRequestDTO.getName(), id)) {
+                throw new DuplicateResourceException("Plan name '" + planRequestDTO.getName() + "' already exists.");
+            }
+        }
+
+        planDB.setName(planRequestDTO.getName());
+        planDB.setDescription(planRequestDTO.getDescription());
+        planDB.setPrice(planRequestDTO.getPrice());
+        planDB.setDurationInDays(planRequestDTO.getDurationInDays());
+        planDB.setActive(planRequestDTO.isActive());
+
+        Plan updatedPlan = this.planRepository.save(planDB);
+
+        return this.convertToPlanResponseDTO(updatedPlan);
+    }
 }
