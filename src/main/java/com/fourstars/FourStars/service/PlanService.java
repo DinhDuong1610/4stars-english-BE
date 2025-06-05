@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.service;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -9,6 +10,7 @@ import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.repository.PlanRepository;
 import com.fourstars.FourStars.repository.SubscriptionRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class PlanService {
@@ -53,6 +55,14 @@ public class PlanService {
         plan.setActive(planRequestDTO.isActive());
 
         plan = this.planRepository.save(plan);
+
+        return this.convertToPlanResponseDTO(plan);
+    }
+
+    @Transactional(readOnly = true)
+    public PlanResponseDTO findById(long id) {
+        Plan plan = this.planRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
 
         return this.convertToPlanResponseDTO(plan);
     }

@@ -2,11 +2,15 @@ package com.fourstars.FourStars.controller.admin;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fourstars.FourStars.domain.Plan;
 import com.fourstars.FourStars.domain.request.plan.PlanRequestDTO;
 import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.service.PlanService;
@@ -31,5 +35,13 @@ public class PlanController {
         PlanResponseDTO plan = this.planService.create(planRequestDTO);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(plan);
+    }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Get plan by id")
+    public ResponseEntity<PlanResponseDTO> findById(@PathVariable("id") long id) {
+        PlanResponseDTO plan = this.planService.findById(id);
+
+        return ResponseEntity.ok(plan);
     }
 }
