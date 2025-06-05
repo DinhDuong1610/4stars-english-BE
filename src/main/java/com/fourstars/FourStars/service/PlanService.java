@@ -10,6 +10,7 @@ import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.repository.PlanRepository;
 import com.fourstars.FourStars.repository.SubscriptionRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
@@ -94,5 +95,17 @@ public class PlanService {
         Plan updatedPlan = this.planRepository.save(planDB);
 
         return this.convertToPlanResponseDTO(updatedPlan);
+    }
+
+    @Transactional
+    public void delete(long id) throws ResourceNotFoundException, ResourceInUseException {
+        Plan planToDelete = this.getPlanEntityById(id);
+
+        if (this.subscriptionRepository.existsByPlanIdAndActiveTrue(id)) {
+            throw new ResourceInUseException("Plan '" + planToDelete.getName()
+                    + "' is currently assigned to subscriptions and cannot be deleted.");
+        }
+
+        this.planRepository.delete(planToDelete);
     }
 }

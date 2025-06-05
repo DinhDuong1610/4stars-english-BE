@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.service.PlanService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.validation.Valid;
@@ -53,5 +55,13 @@ public class PlanController {
             @RequestBody PlanRequestDTO planRequestDTO) throws ResourceNotFoundException, DuplicateResourceException {
         PlanResponseDTO plan = this.planService.update(id, planRequestDTO);
         return ResponseEntity.ok(plan);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a plan")
+    public ResponseEntity<Void> deletePlan(@PathVariable long id)
+            throws ResourceNotFoundException, ResourceInUseException {
+        planService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }
