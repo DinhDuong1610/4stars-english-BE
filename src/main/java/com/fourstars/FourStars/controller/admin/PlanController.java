@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.admin;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.Plan;
 import com.fourstars.FourStars.domain.request.plan.PlanRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.service.PlanService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
@@ -63,5 +65,12 @@ public class PlanController {
             throws ResourceNotFoundException, ResourceInUseException {
         planService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all plans with pagination")
+    public ResponseEntity<ResultPaginationDTO<PlanResponseDTO>> getAllPlans(Pageable pageable) {
+        ResultPaginationDTO<PlanResponseDTO> result = planService.fetchAll(pageable);
+        return ResponseEntity.ok(result);
     }
 }

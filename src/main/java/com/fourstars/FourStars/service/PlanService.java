@@ -1,11 +1,17 @@
 package com.fourstars.FourStars.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Plan;
 import com.fourstars.FourStars.domain.request.plan.PlanRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.repository.PlanRepository;
 import com.fourstars.FourStars.repository.SubscriptionRepository;
@@ -107,5 +113,22 @@ public class PlanService {
         }
 
         this.planRepository.delete(planToDelete);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<PlanResponseDTO> fetchAll(Pageable pageable) {
+        Page<Plan> pagePlan = this.planRepository.findAll(pageable);
+
+        List<PlanResponseDTO> planDTOs = pagePlan.getContent().stream()
+                .map(this::convertToPlanResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pagePlan.getTotalPages(),
+                pagePlan.getTotalElements());
+
+        return new ResultPaginationDTO<>(meta, planDTOs);
     }
 }
