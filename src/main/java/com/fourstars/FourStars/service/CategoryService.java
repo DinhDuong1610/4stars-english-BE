@@ -15,6 +15,7 @@ import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.GrammarRepository;
 import com.fourstars.FourStars.repository.VideoRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
+import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -96,6 +97,40 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
         return convertToCategoryResponseDTO(category, deep);
+    }
+
+    @Transactional
+    public CategoryResponseDTO updateCategory(long id, CategoryRequestDTO requestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        Category categoryDB = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
+
+        if (categoryRepository.existsByNameAndTypeAndParentCategoryIdAndIdNot(requestDTO.getName(),
+                requestDTO.getType(), requestDTO.getParentId(), id)) {
+            throw new DuplicateResourceException(
+                    "Another category with the same name, type, and parent already exists.");
+        }
+
+        if (requestDTO.getParentId() != null && requestDTO.getParentId() == id) {
+            throw new BadRequestException("A category cannot be its own parent.");
+        }
+
+        categoryDB.setName(requestDTO.getName());
+        categoryDB.setDescription(requestDTO.getDescription());
+        categoryDB.setType(requestDTO.getType());
+        categoryDB.setOrderIndex(requestDTO.getOrderIndex());
+
+        if (requestDTO.getParentId() != null) {
+            Category parent = categoryRepository.findById(requestDTO.getParentId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Parent category not found with id: " + requestDTO.getParentId()));
+            categoryDB.setParentCategory(parent);
+        } else {
+            categoryDB.setParentCategory(null);
+        }
+
+        Category updatedCategory = categoryRepository.save(categoryDB);
+        return convertToCategoryResponseDTO(updatedCategory, false);
     }
 
 }

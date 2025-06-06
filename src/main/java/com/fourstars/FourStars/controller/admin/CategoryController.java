@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,6 +16,7 @@ import com.fourstars.FourStars.domain.request.category.CategoryRequestDTO;
 import com.fourstars.FourStars.domain.response.category.CategoryResponseDTO;
 import com.fourstars.FourStars.service.CategoryService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
+import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -48,5 +50,15 @@ public class CategoryController {
             throws ResourceNotFoundException {
         CategoryResponseDTO category = categoryService.fetchCategoryById(id, deep);
         return ResponseEntity.ok(category);
+    }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing category")
+    public ResponseEntity<CategoryResponseDTO> updateCategory(
+            @PathVariable long id,
+            @Valid @RequestBody CategoryRequestDTO requestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        CategoryResponseDTO updatedCategory = categoryService.updateCategory(id, requestDTO);
+        return ResponseEntity.ok(updatedCategory);
     }
 }
