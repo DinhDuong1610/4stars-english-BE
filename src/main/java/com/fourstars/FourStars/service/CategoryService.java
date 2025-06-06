@@ -91,4 +91,11 @@ public class CategoryService {
         return convertToCategoryResponseDTO(savedCategory, false);
     }
 
+    @Transactional(readOnly = true)
+    public CategoryResponseDTO fetchCategoryById(long id, boolean deep) throws ResourceNotFoundException {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
+        return convertToCategoryResponseDTO(category, deep);
+    }
+
 }
