@@ -1,23 +1,35 @@
 package com.fourstars.FourStars.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.request.category.CategoryRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.category.CategoryResponseDTO;
 import com.fourstars.FourStars.repository.ArticleRepository;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.GrammarRepository;
 import com.fourstars.FourStars.repository.VideoRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
+import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class CategoryService {
@@ -133,4 +145,96 @@ public class CategoryService {
         return convertToCategoryResponseDTO(updatedCategory, false);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<CategoryResponseDTO> fetchAllCategories(Pageable pageable, CategoryType type) {
+        // Tạo một Specification để xây dựng truy vấn động
+        Specification<Category> spec = (root, query, criteriaBuilder) -> {
+            // Luôn lọc để chỉ lấy các danh mục không có cha (cấp cao nhất)
+            Predicate topLevelPredicate = criteriaBuilder.isNull(root.get("parentCategory"));
+
+            // Nếu có tham số 'type' được truyền vào, thêm điều kiện lọc
+            if (type != null) {
+                Predicate typePredicate = criteriaBuilder.equal(root.get("type"), type);
+                return criteriaBuilder.and(topLevelPredicate, typePredicate);
+            }
+
+            // Nếu không, chỉ trả về các danh mục cấp cao nhất
+            return topLevelPredicate;
+        };
+
+        Page<Category> pageCategory = categoryRepository.findAll(spec, pageable);
+        List<CategoryResponseDTO> categoryDTOs = pageCategory.getContent().stream()
+                .map(cat -> convertToCategoryResponseDTO(cat, false)) // Lấy danh sách nông
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageCategory.getTotalPages(),
+                pageCategory.getTotalElements());
+        return new ResultPaginationDTO<>(meta, categoryDTOs);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<CategoryResponseDTO> fetchAllCategoriesAsTree(CategoryType type, Pageable pageable) {
+        // 1. Lấy tất cả danh mục khớp điều kiện lọc (nếu có)
+        Specification<Category> spec = (root, query, cb) -> {
+            if (type != null) {
+                return cb.equal(root.get("type"), type);
+            }
+            return cb.conjunction();
+        };
+        List<Category> allCategories = categoryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "orderIndex"));
+
+        // 2. Chuyển đổi tất cả entity sang DTO và đưa vào Map để tra cứu nhanh
+        Map<Long, CategoryResponseDTO> categoryMap = allCategories.stream()
+                .map(cat -> convertToCategoryResponseDTO(cat, false)) // Chuyển đổi dạng nông
+                .collect(Collectors.toMap(
+                        CategoryResponseDTO::getId,
+                        Function.identity(),
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new));
+
+        // 3. Xây dựng cấu trúc cây và tách ra danh sách các danh mục gốc (root)
+        List<CategoryResponseDTO> rootCategories = new ArrayList<>();
+        categoryMap.values().forEach(dto -> {
+            if (dto.getParentId() != null) {
+                CategoryResponseDTO parentDTO = categoryMap.get(dto.getParentId());
+                if (parentDTO != null) {
+                    if (parentDTO.getSubCategories() == null) {
+                        parentDTO.setSubCategories(new ArrayList<>());
+                    }
+                    parentDTO.getSubCategories().add(dto);
+                }
+            } else {
+                rootCategories.add(dto);
+            }
+        });
+
+        // 4. Thực hiện phân trang thủ công trên danh sách các danh mục gốc đã được xây
+        // dựng
+        long totalRootElements = rootCategories.size();
+        int pageSize = pageable.getPageSize();
+        int currentPage = pageable.getPageNumber();
+        int startItem = currentPage * pageSize;
+
+        List<CategoryResponseDTO> paginatedRootCategories;
+
+        if (rootCategories.size() < startItem) {
+            paginatedRootCategories = Collections.emptyList();
+        } else {
+            int toIndex = Math.min(startItem + pageSize, rootCategories.size());
+            paginatedRootCategories = rootCategories.subList(startItem, toIndex);
+        }
+
+        // 5. Tạo đối tượng Meta cho việc phân trang
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                currentPage + 1,
+                pageSize,
+                (int) Math.ceil((double) totalRootElements / pageSize), // Tổng số trang của danh mục gốc
+                totalRootElements // Tổng số danh mục gốc
+        );
+
+        return new ResultPaginationDTO<>(meta, paginatedRootCategories);
+    }
 }

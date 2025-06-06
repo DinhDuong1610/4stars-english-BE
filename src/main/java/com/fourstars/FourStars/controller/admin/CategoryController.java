@@ -1,5 +1,8 @@
 package com.fourstars.FourStars.controller.admin;
 
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.category.CategoryRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.category.CategoryResponseDTO;
 import com.fourstars.FourStars.service.CategoryService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
+import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
@@ -60,5 +65,24 @@ public class CategoryController {
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
         CategoryResponseDTO updatedCategory = categoryService.updateCategory(id, requestDTO);
         return ResponseEntity.ok(updatedCategory);
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all categories with pagination")
+    public ResponseEntity<ResultPaginationDTO<CategoryResponseDTO>> getAllCategories(
+            Pageable pageable,
+            @RequestParam(name = "type", required = false) CategoryType type) {
+        ResultPaginationDTO<CategoryResponseDTO> result = categoryService.fetchAllCategories(pageable, type);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/tree")
+    @ApiMessage("Fetch all categories as a paginated tree structure")
+    public ResponseEntity<ResultPaginationDTO<CategoryResponseDTO>> getAllCategoriesAsTree(
+            @RequestParam(name = "type", required = false) CategoryType type,
+            Pageable pageable) {
+        ResultPaginationDTO<CategoryResponseDTO> categoryTree = categoryService.fetchAllCategoriesAsTree(type,
+                pageable);
+        return ResponseEntity.ok(categoryTree);
     }
 }
