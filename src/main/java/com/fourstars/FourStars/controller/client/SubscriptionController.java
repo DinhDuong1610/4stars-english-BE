@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.client;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.subscription.SubscriptionRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.subscription.SubscriptionResponseDTO;
 import com.fourstars.FourStars.service.SubscriptionService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
@@ -49,6 +51,15 @@ public class SubscriptionController {
             throws ResourceNotFoundException {
         SubscriptionResponseDTO subscription = subscriptionService.fetchSubscriptionById(id);
         return ResponseEntity.ok(subscription);
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all subscriptions for the current user")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getCurrentUserSubscriptions(Pageable pageable)
+            throws ResourceNotFoundException {
+        ResultPaginationDTO<SubscriptionResponseDTO> result = subscriptionService.fetchUserSubscriptions(pageable);
+        return ResponseEntity.ok(result);
     }
 
 }

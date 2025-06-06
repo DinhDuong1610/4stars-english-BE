@@ -2,7 +2,11 @@ package com.fourstars.FourStars.service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +14,7 @@ import com.fourstars.FourStars.domain.Plan;
 import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.request.subscription.SubscriptionRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.subscription.SubscriptionResponseDTO;
 import com.fourstars.FourStars.repository.PlanRepository;
 import com.fourstars.FourStars.repository.SubscriptionRepository;
@@ -136,6 +141,27 @@ public class SubscriptionService {
             throw new ResourceNotFoundException("You do not have permission to view this subscription.");
         }
         return convertToSubscriptionResponseDTO(subscription);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<SubscriptionResponseDTO> fetchUserSubscriptions(Pageable pageable)
+            throws ResourceNotFoundException {
+        String currentUserEmail = SecurityUtil.getCurrentUserLogin()
+                .orElseThrow(() -> new ResourceNotFoundException("User not authenticated."));
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found."));
+
+        Page<Subscription> pageSubscription = subscriptionRepository.findByUserId(user.getId(), pageable);
+        List<SubscriptionResponseDTO> subscriptionDTOs = pageSubscription.getContent().stream()
+                .map(this::convertToSubscriptionResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageSubscription.getTotalPages(),
+                pageSubscription.getTotalElements());
+        return new ResultPaginationDTO<>(meta, subscriptionDTOs);
     }
 
 }
