@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +24,7 @@ import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.validation.Valid;
@@ -84,5 +86,13 @@ public class CategoryController {
         ResultPaginationDTO<CategoryResponseDTO> categoryTree = categoryService.fetchAllCategoriesAsTree(type,
                 pageable);
         return ResponseEntity.ok(categoryTree);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a category")
+    public ResponseEntity<Void> deleteCategory(@PathVariable long id)
+            throws ResourceNotFoundException, ResourceInUseException {
+        categoryService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
     }
 }

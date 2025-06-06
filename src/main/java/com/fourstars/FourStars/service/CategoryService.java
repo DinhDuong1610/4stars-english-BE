@@ -27,6 +27,7 @@ import com.fourstars.FourStars.repository.VocabularyRepository;
 import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
+import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.persistence.criteria.Predicate;
@@ -236,5 +237,38 @@ public class CategoryService {
         );
 
         return new ResultPaginationDTO<>(meta, paginatedRootCategories);
+    }
+
+    @Transactional
+    public void deleteCategory(long id) throws ResourceNotFoundException, ResourceInUseException {
+        Category categoryToDelete = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
+
+        if (categoryToDelete.getSubCategories() != null && !categoryToDelete.getSubCategories().isEmpty()) {
+            throw new ResourceInUseException("Cannot delete category because it has sub-categories.");
+        }
+
+        boolean inUse = false;
+        switch (categoryToDelete.getType()) {
+            case VOCABULARY:
+                inUse = vocabularyRepository.existsByCategoryId(id);
+                break;
+            case GRAMMAR:
+                inUse = grammarRepository.existsByCategoryId(id);
+                break;
+            case ARTICLE:
+                inUse = articleRepository.existsByCategoryId(id);
+                break;
+            case VIDEO:
+                inUse = videoRepository.existsByCategoryId(id);
+                break;
+        }
+
+        if (inUse) {
+            throw new ResourceInUseException(
+                    "Cannot delete category because it contains content (e.g., vocabularies, articles).");
+        }
+
+        categoryRepository.delete(categoryToDelete);
     }
 }
