@@ -2,6 +2,7 @@ package com.fourstars.FourStars.controller.admin;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.response.subscription.SubscriptionResponseDTO;
 import com.fourstars.FourStars.service.SubscriptionService;
+import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.constant.PaymentStatus;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -34,5 +36,14 @@ public class SubscriptionController {
         SubscriptionResponseDTO updatedSubscription = subscriptionService.confirmSubscriptionPayment(subscriptionId,
                 transactionId, status);
         return ResponseEntity.ok(updatedSubscription);
+    }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a subscription by its ID")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<SubscriptionResponseDTO> getSubscriptionById(@PathVariable long id)
+            throws ResourceNotFoundException {
+        SubscriptionResponseDTO subscription = subscriptionService.fetchSubscriptionById(id);
+        return ResponseEntity.ok(subscription);
     }
 }

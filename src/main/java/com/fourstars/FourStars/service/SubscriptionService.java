@@ -122,4 +122,20 @@ public class SubscriptionService {
         return convertToSubscriptionResponseDTO(updatedSubscription);
     }
 
+    @Transactional(readOnly = true)
+    public SubscriptionResponseDTO fetchSubscriptionById(long id) throws ResourceNotFoundException {
+        String currentUserEmail = SecurityUtil.getCurrentUserLogin()
+                .orElseThrow(() -> new ResourceNotFoundException("User not authenticated."));
+
+        Subscription subscription = subscriptionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + id));
+
+        // Chỉ admin hoặc chủ sở hữu subscription mới được xem
+        if (!subscription.getUser().getEmail().equals(currentUserEmail)
+                && userRepository.findByEmail(currentUserEmail).get().getRole().getName() != "ADMIN") {
+            throw new ResourceNotFoundException("You do not have permission to view this subscription.");
+        }
+        return convertToSubscriptionResponseDTO(subscription);
+    }
+
 }
