@@ -164,4 +164,19 @@ public class SubscriptionService {
         return new ResultPaginationDTO<>(meta, subscriptionDTOs);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<SubscriptionResponseDTO> fetchAllSubscriptionsAsAdmin(Pageable pageable) {
+        Page<Subscription> pageSubscription = subscriptionRepository.findAll(pageable);
+        List<SubscriptionResponseDTO> subscriptionDTOs = pageSubscription.getContent().stream()
+                .map(this::convertToSubscriptionResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageSubscription.getTotalPages(),
+                pageSubscription.getTotalElements());
+        return new ResultPaginationDTO<>(meta, subscriptionDTOs);
+    }
+
 }
