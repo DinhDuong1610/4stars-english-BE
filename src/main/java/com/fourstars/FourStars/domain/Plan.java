@@ -58,7 +58,7 @@ public class Plan {
     @NotNull(message = "Duration in days cannot be null")
     @Min(value = 1, message = "Duration must be at least 1 day")
     @Column(name = "duration_in_days", nullable = false)
-    private int durationInDays;
+    private Integer durationInDays;
 
     @Column(nullable = false)
     private boolean active = true;
