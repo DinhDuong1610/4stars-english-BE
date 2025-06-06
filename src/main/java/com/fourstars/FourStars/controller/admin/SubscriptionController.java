@@ -1,0 +1,38 @@
+package com.fourstars.FourStars.controller.admin;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fourstars.FourStars.domain.response.subscription.SubscriptionResponseDTO;
+import com.fourstars.FourStars.service.SubscriptionService;
+import com.fourstars.FourStars.util.constant.PaymentStatus;
+import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+@RestController
+@RequestMapping("/api/v1/admin/subscriptions")
+public class SubscriptionController {
+
+    private final SubscriptionService subscriptionService;
+
+    public SubscriptionController(SubscriptionService subscriptionService) {
+        this.subscriptionService = subscriptionService;
+    }
+
+    // Endpoint để admin xác nhận thanh toán (thường là webhook từ cổng thanh toán)
+    @PostMapping("/confirm-payment/{subscriptionId}")
+    // @PreAuthorize("hasAuthority('ROLE_ADMIN') or
+    // hasAuthority('SYSTEM_PAYMENT_GATEWAY')") // Bảo vệ endpoint này
+    public ResponseEntity<SubscriptionResponseDTO> confirmPayment(
+            @PathVariable long subscriptionId,
+            @RequestParam String transactionId,
+            @RequestParam PaymentStatus status) throws ResourceNotFoundException {
+        SubscriptionResponseDTO updatedSubscription = subscriptionService.confirmSubscriptionPayment(subscriptionId,
+                transactionId, status);
+        return ResponseEntity.ok(updatedSubscription);
+    }
+}

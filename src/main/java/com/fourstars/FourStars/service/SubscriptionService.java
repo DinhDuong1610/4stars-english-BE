@@ -104,4 +104,22 @@ public class SubscriptionService {
         Subscription savedSubscription = subscriptionRepository.save(subscription);
         return convertToSubscriptionResponseDTO(savedSubscription);
     }
+
+    @Transactional
+    public SubscriptionResponseDTO confirmSubscriptionPayment(long subscriptionId, String transactionId,
+            PaymentStatus status) throws ResourceNotFoundException {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + subscriptionId));
+
+        subscription.setTransactionId(transactionId);
+        subscription.setPaymentStatus(status);
+        if (status == PaymentStatus.PAID) {
+            subscription.setActive(true);
+        } else {
+            subscription.setActive(false);
+        }
+        Subscription updatedSubscription = subscriptionRepository.save(subscription);
+        return convertToSubscriptionResponseDTO(updatedSubscription);
+    }
+
 }
