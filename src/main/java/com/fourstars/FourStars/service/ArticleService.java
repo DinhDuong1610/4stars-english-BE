@@ -82,4 +82,33 @@ public class ArticleService {
         Article savedArticle = articleRepository.save(article);
         return convertToArticleResponseDTO(savedArticle);
     }
+
+    @Transactional
+    public ArticleResponseDTO updateArticle(long id, ArticleRequestDTO requestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        Article articleDB = articleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Article not found with id: " + id));
+
+        if (articleRepository.existsByTitleAndCategoryIdAndIdNot(requestDTO.getTitle(), requestDTO.getCategoryId(),
+                id)) {
+            throw new DuplicateResourceException("An article with the same title already exists in this category.");
+        }
+
+        Category category = categoryRepository.findById(requestDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found with id: " + requestDTO.getCategoryId()));
+
+        if (category.getType() != CategoryType.ARTICLE) {
+            throw new BadRequestException("The selected category is not of type 'ARTICLE'.");
+        }
+
+        articleDB.setTitle(requestDTO.getTitle());
+        articleDB.setContent(sanitizeHtmlContent(requestDTO.getContent())); // Làm sạch HTML
+        articleDB.setImage(requestDTO.getImage());
+        articleDB.setAudio(requestDTO.getAudio());
+        articleDB.setCategory(category);
+
+        Article updatedArticle = articleRepository.save(articleDB);
+        return convertToArticleResponseDTO(updatedArticle);
+    }
 }
