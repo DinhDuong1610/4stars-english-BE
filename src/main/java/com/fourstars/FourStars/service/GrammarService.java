@@ -1,13 +1,21 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.Grammar;
 import com.fourstars.FourStars.domain.request.grammar.GrammarRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.grammar.GrammarResponseDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.GrammarRepository;
@@ -15,6 +23,8 @@ import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class GrammarService {
@@ -117,5 +127,31 @@ public class GrammarService {
         Grammar grammar = grammarRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grammar lesson not found with id: " + id));
         return convertToGrammarResponseDTO(grammar);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<GrammarResponseDTO> fetchAllGrammars(Pageable pageable, Long categoryId, String name) {
+        Specification<Grammar> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (name != null && !name.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(root.get("name"), "%" + name.trim() + "%"));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Grammar> pageGrammar = grammarRepository.findAll(spec, pageable);
+        List<GrammarResponseDTO> grammarDTOs = pageGrammar.getContent().stream()
+                .map(this::convertToGrammarResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageGrammar.getTotalPages(),
+                pageGrammar.getTotalElements());
+        return new ResultPaginationDTO<>(meta, grammarDTOs);
     }
 }
