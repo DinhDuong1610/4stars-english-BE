@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,5 +48,12 @@ public class ArticleController {
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
         ArticleResponseDTO updatedArticle = articleService.updateArticle(id, requestDTO);
         return ResponseEntity.ok(updatedArticle);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete an article")
+    public ResponseEntity<Void> deleteArticle(@PathVariable long id) throws ResourceNotFoundException {
+        articleService.deleteArticle(id);
+        return ResponseEntity.noContent().build();
     }
 }
