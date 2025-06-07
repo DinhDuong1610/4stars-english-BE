@@ -9,4 +9,8 @@ import com.fourstars.FourStars.domain.Grammar;
 @Repository
 public interface GrammarRepository extends JpaRepository<Grammar, Long>, JpaSpecificationExecutor<Grammar> {
     boolean existsByCategoryId(Long categoryId);
+
+    boolean existsByNameAndCategoryId(String name, Long categoryId);
+
+    boolean existsByNameAndCategoryIdAndIdNot(String name, Long categoryId, Long id);
 }
