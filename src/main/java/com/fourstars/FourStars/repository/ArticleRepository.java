@@ -9,4 +9,8 @@ import com.fourstars.FourStars.domain.Article;
 @Repository
 public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpecificationExecutor<Article> {
     boolean existsByCategoryId(Long categoryId);
+
+    boolean existsByTitleAndCategoryId(String title, Long categoryId);
+
+    boolean existsByTitleAndCategoryIdAndIdNot(String title, Long categoryId, Long id);
 }
