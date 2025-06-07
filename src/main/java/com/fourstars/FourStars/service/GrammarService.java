@@ -76,4 +76,31 @@ public class GrammarService {
         Grammar savedGrammar = grammarRepository.save(grammar);
         return convertToGrammarResponseDTO(savedGrammar);
     }
+
+    @Transactional
+    public GrammarResponseDTO updateGrammar(long id, GrammarRequestDTO requestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        Grammar grammarDB = grammarRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grammar lesson not found with id: " + id));
+
+        if (grammarRepository.existsByNameAndCategoryIdAndIdNot(requestDTO.getName(), requestDTO.getCategoryId(), id)) {
+            throw new DuplicateResourceException(
+                    "A grammar lesson with the same name already exists in this category.");
+        }
+
+        Category category = categoryRepository.findById(requestDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found with id: " + requestDTO.getCategoryId()));
+
+        if (category.getType() != CategoryType.GRAMMAR) {
+            throw new BadRequestException("The selected category is not of type 'GRAMMAR'.");
+        }
+
+        grammarDB.setName(requestDTO.getName());
+        grammarDB.setContent(requestDTO.getContent());
+        grammarDB.setCategory(category);
+
+        Grammar updatedGrammar = grammarRepository.save(grammarDB);
+        return convertToGrammarResponseDTO(updatedGrammar);
+    }
 }
