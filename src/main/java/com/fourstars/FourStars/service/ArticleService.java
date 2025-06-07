@@ -1,13 +1,21 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Article;
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.request.article.ArticleRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.article.ArticleResponseDTO;
 import com.fourstars.FourStars.repository.ArticleRepository;
 import com.fourstars.FourStars.repository.CategoryRepository;
@@ -15,6 +23,8 @@ import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class ArticleService {
@@ -126,4 +136,32 @@ public class ArticleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Article not found with id: " + id));
         return convertToArticleResponseDTO(article);
     }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<ArticleResponseDTO> fetchAllArticles(Pageable pageable, Long categoryId, String title) {
+        Specification<Article> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (title != null && !title.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("title")),
+                        "%" + title.trim().toLowerCase() + "%"));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Article> pageArticle = articleRepository.findAll(spec, pageable);
+        List<ArticleResponseDTO> articleDTOs = pageArticle.getContent().stream()
+                .map(this::convertToArticleResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageArticle.getTotalPages(),
+                pageArticle.getTotalElements());
+        return new ResultPaginationDTO<>(meta, articleDTOs);
+    }
+
 }

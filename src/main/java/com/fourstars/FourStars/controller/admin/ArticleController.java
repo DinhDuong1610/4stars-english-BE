@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.admin;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,9 +11,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.article.ArticleRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.article.ArticleResponseDTO;
 import com.fourstars.FourStars.service.ArticleService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
@@ -63,5 +66,15 @@ public class ArticleController {
     public ResponseEntity<ArticleResponseDTO> getArticleById(@PathVariable long id) throws ResourceNotFoundException {
         ArticleResponseDTO article = articleService.fetchArticleById(id);
         return ResponseEntity.ok(article);
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all articles with pagination and filtering")
+    public ResponseEntity<ResultPaginationDTO<ArticleResponseDTO>> getAllArticles(
+            Pageable pageable,
+            @RequestParam(name = "categoryId", required = false) Long categoryId,
+            @RequestParam(name = "title", required = false) String title) {
+        ResultPaginationDTO<ArticleResponseDTO> result = articleService.fetchAllArticles(pageable, categoryId, title);
+        return ResponseEntity.ok(result);
     }
 }
