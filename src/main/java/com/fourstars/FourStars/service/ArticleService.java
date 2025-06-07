@@ -119,4 +119,11 @@ public class ArticleService {
 
         articleRepository.delete(articleToDelete);
     }
+
+    @Transactional(readOnly = true)
+    public ArticleResponseDTO fetchArticleById(long id) throws ResourceNotFoundException {
+        Article article = articleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Article not found with id: " + id));
+        return convertToArticleResponseDTO(article);
+    }
 }
