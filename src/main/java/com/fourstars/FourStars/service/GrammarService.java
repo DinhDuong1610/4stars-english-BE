@@ -111,4 +111,11 @@ public class GrammarService {
 
         grammarRepository.delete(grammarToDelete);
     }
+
+    @Transactional(readOnly = true)
+    public GrammarResponseDTO fetchGrammarById(long id) throws ResourceNotFoundException {
+        Grammar grammar = grammarRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grammar lesson not found with id: " + id));
+        return convertToGrammarResponseDTO(grammar);
+    }
 }

@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -55,5 +56,12 @@ public class GrammarController {
     public ResponseEntity<Void> deleteGrammar(@PathVariable long id) throws ResourceNotFoundException {
         grammarService.deleteGrammar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a grammar lesson by its ID")
+    public ResponseEntity<GrammarResponseDTO> getGrammarById(@PathVariable long id) throws ResourceNotFoundException {
+        GrammarResponseDTO grammar = grammarService.fetchGrammarById(id);
+        return ResponseEntity.ok(grammar);
     }
 }
