@@ -17,6 +17,7 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -47,18 +48,42 @@ public class UserVocabulary {
     @JsonIgnore
     private Vocabulary vocabulary;
 
+    @NotNull(message = "Learning level cannot be null")
+    @Min(value = 1, message = "Level must be between 1 and 5")
+    @Max(value = 5, message = "Level must be between 1 and 5")
+    @Column(nullable = false)
+    private int level = 1;
+
+    // --- Các trường nội bộ cho thuật toán SM-2 ---
+
+    /**
+     * Số lần lặp lại (n trong SM-2).
+     */
+    @NotNull(message = "Repetitions count cannot be null")
+    @Min(value = 0, message = "Repetitions count must be non-negative")
+    @Column(nullable = false)
+    private int repetitions = 0;
+
+    /**
+     * Hệ số dễ (Ease Factor - EF). Bắt đầu từ 2.5.
+     */
+    @NotNull(message = "Ease factor cannot be null")
+    @Column(name = "ease_factor", nullable = false)
+    private double easeFactor = 2.5;
+
+    /**
+     * Khoảng thời gian giữa các lần ôn tập (tính bằng ngày).
+     */
+    @NotNull(message = "Interval cannot be null")
+    @Min(value = 0, message = "Interval must be non-negative")
+    @Column(nullable = false)
+    private int interval = 0; // Bắt đầu từ 0, lần đầu tiên sẽ là 1 ngày
+
+    // --- Các trường thời gian ---
+
     @Column(name = "last_reviewed_at")
     @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss a", timezone = "GMT+7")
     private Instant lastReviewedAt;
-
-    @NotNull(message = "Learning level cannot be null")
-    @Min(value = 0, message = "Level must be non-negative")
-    @Column(nullable = false)
-    private Integer level = 0;
-
-    @NotNull(message = "Ease factor cannot be null")
-    @Column(name = "ease_factor", nullable = false)
-    private Double easeFactor = 2.5;
 
     @Column(name = "next_review_at")
     @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss a", timezone = "GMT+7")
@@ -76,6 +101,7 @@ public class UserVocabulary {
     public void handleBeforeCreate() {
         Instant now = Instant.now();
         this.createdAt = now;
+        this.updatedAt = now;
 
         if (this.lastReviewedAt == null) {
             this.lastReviewedAt = now;
@@ -95,7 +121,10 @@ public class UserVocabulary {
         this.user = user;
         this.vocabulary = vocabulary;
         this.id = new UserVocabularyId(user.getId(), vocabulary.getId());
-        this.level = 0;
+
+        this.level = 1;
+        this.repetitions = 0;
         this.easeFactor = 2.5;
+        this.interval = 0;
     }
 }

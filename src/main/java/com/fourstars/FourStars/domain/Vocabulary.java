@@ -98,8 +98,8 @@ public class Vocabulary {
     private Category category;
 
     @OneToMany(mappedBy = "vocabulary", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore // Thường không muốn tải toàn bộ lịch sử học khi lấy thông tin Vocabulary
-    private List<UserVocabulary> userLearningProgress; // Đổi tên để rõ nghĩa hơn
+    @JsonIgnore
+    private List<UserVocabulary> userLearningProgress;
 
     @PrePersist
     public void handleBeforeCreate() {
