@@ -139,4 +139,11 @@ public class VocabularyService {
         userVocabularyRepository.deleteByVocabularyId(id);
         vocabularyRepository.deleteById(id);
     }
+
+    @Transactional(readOnly = true)
+    public VocabularyResponseDTO fetchVocabularyById(long id) throws ResourceNotFoundException {
+        Vocabulary vocab = vocabularyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + id));
+        return convertToVocabularyResponseDTO(vocab);
+    }
 }

@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -54,6 +55,14 @@ public class VocabularyController {
     public ResponseEntity<Void> deleteVocabulary(@PathVariable long id) throws ResourceNotFoundException {
         vocabularyService.deleteVocabulary(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a vocabulary by its ID")
+    public ResponseEntity<VocabularyResponseDTO> getVocabularyById(@PathVariable long id)
+            throws ResourceNotFoundException {
+        VocabularyResponseDTO vocab = vocabularyService.fetchVocabularyById(id);
+        return ResponseEntity.ok(vocab);
     }
 
 }
