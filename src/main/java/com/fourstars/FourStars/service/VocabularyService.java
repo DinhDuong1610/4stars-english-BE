@@ -95,4 +95,38 @@ public class VocabularyService {
         Vocabulary savedVocab = vocabularyRepository.save(vocab);
         return convertToVocabularyResponseDTO(savedVocab);
     }
+
+    @Transactional
+    public VocabularyResponseDTO updateVocabulary(long id, VocabularyRequestDTO requestDTO)
+            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        Vocabulary vocabDB = vocabularyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + id));
+
+        if (vocabularyRepository.existsByWordAndCategoryIdAndIdNot(requestDTO.getWord(), requestDTO.getCategoryId(),
+                id)) {
+            throw new DuplicateResourceException("A vocabulary with the same word already exists in this category.");
+        }
+
+        Category category = categoryRepository.findById(requestDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found with id: " + requestDTO.getCategoryId()));
+
+        if (category.getType() != CategoryType.VOCABULARY) {
+            throw new BadRequestException("The selected category is not of type 'VOCABULARY'.");
+        }
+
+        vocabDB.setWord(requestDTO.getWord());
+        vocabDB.setDefinitionEn(requestDTO.getDefinitionEn());
+        vocabDB.setMeaningVi(requestDTO.getMeaningVi());
+        vocabDB.setExampleEn(requestDTO.getExampleEn());
+        vocabDB.setExampleVi(requestDTO.getExampleVi());
+        vocabDB.setPartOfSpeech(requestDTO.getPartOfSpeech());
+        vocabDB.setPronunciation(requestDTO.getPronunciation());
+        vocabDB.setImage(requestDTO.getImage());
+        vocabDB.setAudio(requestDTO.getAudio());
+        vocabDB.setCategory(category);
+
+        Vocabulary updatedVocab = vocabularyRepository.save(vocabDB);
+        return convertToVocabularyResponseDTO(updatedVocab);
+    }
 }
