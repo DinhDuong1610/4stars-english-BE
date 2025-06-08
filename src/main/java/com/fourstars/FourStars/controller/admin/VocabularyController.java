@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,4 +48,12 @@ public class VocabularyController {
         VocabularyResponseDTO updatedVocab = vocabularyService.updateVocabulary(id, requestDTO);
         return ResponseEntity.ok(updatedVocab);
     }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a vocabulary")
+    public ResponseEntity<Void> deleteVocabulary(@PathVariable long id) throws ResourceNotFoundException {
+        vocabularyService.deleteVocabulary(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

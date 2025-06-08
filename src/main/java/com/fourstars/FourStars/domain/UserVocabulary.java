@@ -76,8 +76,8 @@ public class UserVocabulary {
      */
     @NotNull(message = "Interval cannot be null")
     @Min(value = 0, message = "Interval must be non-negative")
-    @Column(nullable = false)
-    private int interval = 0; // Bắt đầu từ 0, lần đầu tiên sẽ là 1 ngày
+    @Column(name = "reivew_interval", nullable = false)
+    private int reviewInterval = 0; // Bắt đầu từ 0, lần đầu tiên sẽ là 1 ngày
 
     // --- Các trường thời gian ---
 
@@ -125,6 +125,6 @@ public class UserVocabulary {
         this.level = 1;
         this.repetitions = 0;
         this.easeFactor = 2.5;
-        this.interval = 0;
+        this.reviewInterval = 0;
     }
 }

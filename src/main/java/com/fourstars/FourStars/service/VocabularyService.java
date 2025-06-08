@@ -129,4 +129,14 @@ public class VocabularyService {
         Vocabulary updatedVocab = vocabularyRepository.save(vocabDB);
         return convertToVocabularyResponseDTO(updatedVocab);
     }
+
+    @Transactional
+    public void deleteVocabulary(long id) throws ResourceNotFoundException {
+        if (!vocabularyRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Vocabulary not found with id: " + id);
+        }
+
+        userVocabularyRepository.deleteByVocabularyId(id);
+        vocabularyRepository.deleteById(id);
+    }
 }
