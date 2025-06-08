@@ -1,11 +1,19 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.Video;
 import com.fourstars.FourStars.domain.request.video.VideoRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.video.VideoResponseDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.VideoRepository;
@@ -13,6 +21,8 @@ import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class VideoService {
@@ -118,5 +128,32 @@ public class VideoService {
         Video video = videoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Video not found with id: " + id));
         return convertToVideoResponseDTO(video);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<VideoResponseDTO> fetchAllVideos(Pageable pageable, Long categoryId, String title) {
+        Specification<Video> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (title != null && !title.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("title")),
+                        "%" + title.trim().toLowerCase() + "%"));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Video> pageVideo = videoRepository.findAll(spec, pageable);
+        List<VideoResponseDTO> videoDTOs = pageVideo.getContent().stream()
+                .map(this::convertToVideoResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageVideo.getTotalPages(),
+                pageVideo.getTotalElements());
+        return new ResultPaginationDTO<>(meta, videoDTOs);
     }
 }
