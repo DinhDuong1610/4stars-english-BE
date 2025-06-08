@@ -1,20 +1,32 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Category;
+import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
+import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.constant.CategoryType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class VocabularyService {
@@ -145,5 +157,49 @@ public class VocabularyService {
         Vocabulary vocab = vocabularyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + id));
         return convertToVocabularyResponseDTO(vocab);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<VocabularyResponseDTO> fetchAllVocabularies(Pageable pageable, Long categoryId,
+            String word) {
+        Specification<Vocabulary> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (word != null && !word.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("word")),
+                        "%" + word.trim().toLowerCase() + "%"));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Vocabulary> pageVocab = vocabularyRepository.findAll(spec, pageable);
+        List<VocabularyResponseDTO> vocabDTOs = pageVocab.getContent().stream()
+                .map(this::convertToVocabularyResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pageVocab.getTotalPages(),
+                pageVocab.getTotalElements());
+        return new ResultPaginationDTO<>(meta, vocabDTOs);
+    }
+
+    @Transactional(readOnly = true)
+    public List<VocabularyResponseDTO> getVocabulariesForReview(int limit) throws ResourceNotFoundException {
+        User user = getCurrentAuthenticatedUser();
+        List<Vocabulary> vocabularies = vocabularyRepository.findVocabulariesForReview(user.getId(), limit);
+        return vocabularies.stream()
+                .map(this::convertToVocabularyResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    private User getCurrentAuthenticatedUser() {
+        String currentUserEmail = SecurityUtil.getCurrentUserLogin()
+                .orElseThrow(() -> new ResourceNotFoundException("User not authenticated."));
+        return userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUserEmail));
     }
 }

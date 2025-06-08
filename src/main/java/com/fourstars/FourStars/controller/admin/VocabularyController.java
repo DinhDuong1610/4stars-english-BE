@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.admin;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,9 +11,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
 import com.fourstars.FourStars.service.VocabularyService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
@@ -63,6 +66,17 @@ public class VocabularyController {
             throws ResourceNotFoundException {
         VocabularyResponseDTO vocab = vocabularyService.fetchVocabularyById(id);
         return ResponseEntity.ok(vocab);
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all vocabularies with pagination and filtering")
+    public ResponseEntity<ResultPaginationDTO<VocabularyResponseDTO>> getAllVocabularies(
+            Pageable pageable,
+            @RequestParam(name = "categoryId", required = false) Long categoryId,
+            @RequestParam(name = "word", required = false) String word) {
+        ResultPaginationDTO<VocabularyResponseDTO> result = vocabularyService.fetchAllVocabularies(pageable, categoryId,
+                word);
+        return ResponseEntity.ok(result);
     }
 
 }
