@@ -1,7 +1,9 @@
 package com.fourstars.FourStars.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -12,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.UserVocabulary;
 import com.fourstars.FourStars.domain.Vocabulary;
+import com.fourstars.FourStars.domain.key.UserVocabularyId;
+import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
@@ -201,5 +206,44 @@ public class VocabularyService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not authenticated."));
         return userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + currentUserEmail));
+    }
+
+    @Transactional
+    public UserVocabulary submitVocabularyReview(SubmitReviewRequestDTO reviewDTO)
+            throws ResourceNotFoundException {
+        User user = getCurrentAuthenticatedUser();
+        Long vocabularyId = reviewDTO.getVocabularyId();
+
+        UserVocabularyId userVocabularyId = new UserVocabularyId(user.getId(), vocabularyId);
+        Optional<UserVocabulary> optionalUserVocabulary = userVocabularyRepository.findById(userVocabularyId);
+        UserVocabulary userVocabulary;
+
+        if (optionalUserVocabulary.isPresent()) {
+            userVocabulary = optionalUserVocabulary.get();
+        } else {
+            Vocabulary vocab = vocabularyRepository.findById(vocabularyId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Vocabulary not found with id: " + vocabularyId));
+            userVocabulary = new UserVocabulary(user, vocab);
+        }
+
+        SM2Service.SM2InputData sm2Input = new SM2Service.SM2InputData();
+        sm2Input.setRepetitions(userVocabulary.getRepetitions());
+        sm2Input.setEaseFactor(userVocabulary.getEaseFactor());
+        sm2Input.setInterval(userVocabulary.getReviewInterval());
+        sm2Input.setQuality(reviewDTO.getQuality());
+
+        SM2Service.SM2Result sm2Result = sm2Service.calculate(sm2Input);
+
+        userVocabulary.setLevel(sm2Result.getNewLevel());
+        userVocabulary.setRepetitions(sm2Result.getNewRepetitions());
+        userVocabulary.setEaseFactor(sm2Result.getNewEaseFactor());
+        userVocabulary.setReviewInterval(sm2Result.getNewInterval());
+        userVocabulary.setNextReviewAt(sm2Result.getNextReviewDate());
+        userVocabulary.setLastReviewedAt(Instant.now());
+
+        userVocabulary = userVocabularyRepository.save(userVocabulary);
+
+        return userVocabulary;
     }
 }
