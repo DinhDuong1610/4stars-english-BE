@@ -8,5 +8,9 @@ import com.fourstars.FourStars.domain.Video;
 
 @Repository
 public interface VideoRepository extends JpaRepository<Video, Long>, JpaSpecificationExecutor<Video> {
+    boolean existsByTitleAndCategoryId(String title, Long categoryId);
+
+    boolean existsByTitleAndCategoryIdAndIdNot(String title, Long categoryId, Long id);
+
     boolean existsByCategoryId(Long categoryId);
 }
