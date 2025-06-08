@@ -112,4 +112,11 @@ public class VideoService {
 
         videoRepository.delete(videoToDelete);
     }
+
+    @Transactional(readOnly = true)
+    public VideoResponseDTO fetchVideoById(long id) throws ResourceNotFoundException {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Video not found with id: " + id));
+        return convertToVideoResponseDTO(video);
+    }
 }

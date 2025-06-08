@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -55,5 +56,12 @@ public class VideoController {
     public ResponseEntity<Void> deleteVideo(@PathVariable long id) throws ResourceNotFoundException {
         videoService.deleteVideo(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Fetch a video lesson by its ID")
+    public ResponseEntity<VideoResponseDTO> getVideoById(@PathVariable long id) throws ResourceNotFoundException {
+        VideoResponseDTO video = videoService.fetchVideoById(id);
+        return ResponseEntity.ok(video);
     }
 }
