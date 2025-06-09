@@ -16,6 +16,7 @@ import com.fourstars.FourStars.repository.LikeRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
@@ -105,6 +106,28 @@ public class PostService {
 
         Post savedPost = postRepository.save(post);
         return convertToPostResponseDTO(savedPost, currentUser);
+    }
+
+    @Transactional
+    public PostResponseDTO updatePost(long id, PostRequestDTO requestDTO)
+            throws ResourceNotFoundException, BadRequestException {
+        User currentUser = getCurrentAuthenticatedUser();
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("User not authenticated.");
+        }
+
+        Post postDB = postRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
+
+        // Chỉ chủ sở hữu bài đăng mới có quyền sửa
+        if (postDB.getUser().getId() != currentUser.getId()) {
+            throw new BadRequestException("You do not have permission to update this post.");
+        }
+
+        postDB.setCaption(requestDTO.getCaption());
+
+        Post updatedPost = postRepository.save(postDB);
+        return convertToPostResponseDTO(updatedPost, currentUser);
     }
 
 }
