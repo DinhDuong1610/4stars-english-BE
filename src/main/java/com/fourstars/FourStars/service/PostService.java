@@ -130,4 +130,28 @@ public class PostService {
         return convertToPostResponseDTO(updatedPost, currentUser);
     }
 
+    @Transactional
+    public void deletePost(long id) throws ResourceNotFoundException, BadRequestException {
+        User currentUser = getCurrentAuthenticatedUser();
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("User not authenticated.");
+        }
+
+        Post postToDelete = postRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
+
+        // Chỉ chủ sở hữu hoặc admin mới có quyền xóa
+        // if (postToDelete.getUser().getId() != currentUser.getId() &&
+        // !SecurityUtil.isAdmin(authentication)) {
+        // throw new BadRequestException("You do not have permission to delete this
+        // post.");
+        // }
+        // Hiện tại chỉ check chủ sở hữu
+        if (postToDelete.getUser().getId() != currentUser.getId()) {
+            throw new BadRequestException("You do not have permission to delete this post.");
+        }
+
+        postRepository.delete(postToDelete);
+    }
+
 }

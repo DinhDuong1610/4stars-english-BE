@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.client;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,5 +48,14 @@ public class PostController {
             throws ResourceNotFoundException, BadRequestException {
         PostResponseDTO updatedPost = postService.updatePost(id, requestDTO);
         return ResponseEntity.ok(updatedPost);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a post")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deletePost(@PathVariable long id)
+            throws ResourceNotFoundException, BadRequestException {
+        postService.deletePost(id);
+        return ResponseEntity.noContent().build();
     }
 }
