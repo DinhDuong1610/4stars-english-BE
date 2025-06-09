@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.domain.Like;
 import com.fourstars.FourStars.domain.Post;
 import com.fourstars.FourStars.domain.PostAttachment;
 import com.fourstars.FourStars.domain.User;
@@ -20,6 +21,7 @@ import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.BadRequestException;
+import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
@@ -182,4 +184,34 @@ public class PostService {
         return new ResultPaginationDTO<>(meta, postDTOs);
     }
 
+    @Transactional
+    public void handleLikePost(long postId) throws ResourceNotFoundException, DuplicateResourceException {
+        User currentUser = getCurrentAuthenticatedUser();
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("User not authenticated.");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
+
+        if (likeRepository.findByUserIdAndPostId(currentUser.getId(), postId).isPresent()) {
+            throw new DuplicateResourceException("You have already liked this post.");
+        }
+
+        Like newLike = new Like(currentUser, post);
+        likeRepository.save(newLike);
+    }
+
+    @Transactional
+    public void handleUnlikePost(long postId) throws ResourceNotFoundException {
+        User currentUser = getCurrentAuthenticatedUser();
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("User not authenticated.");
+        }
+
+        Like like = likeRepository.findByUserIdAndPostId(currentUser.getId(), postId)
+                .orElseThrow(() -> new ResourceNotFoundException("You have not liked this post."));
+
+        likeRepository.delete(like);
+    }
 }

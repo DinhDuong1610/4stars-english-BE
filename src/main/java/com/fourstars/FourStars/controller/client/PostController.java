@@ -19,6 +19,7 @@ import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
 import com.fourstars.FourStars.service.PostService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.error.BadRequestException;
+import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.validation.Valid;
@@ -74,5 +75,22 @@ public class PostController {
     public ResponseEntity<ResultPaginationDTO<PostResponseDTO>> getAllPosts(Pageable pageable) {
         ResultPaginationDTO<PostResponseDTO> result = postService.fetchAllPosts(pageable);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{id}/like")
+    @ApiMessage("Like a post")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> likePost(@PathVariable("id") long postId)
+            throws ResourceNotFoundException, DuplicateResourceException {
+        postService.handleLikePost(postId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}/like")
+    @ApiMessage("Unlike a post")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> unlikePost(@PathVariable("id") long postId) throws ResourceNotFoundException {
+        postService.handleUnlikePost(postId);
+        return ResponseEntity.noContent().build();
     }
 }
