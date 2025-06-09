@@ -154,4 +154,12 @@ public class PostService {
         postRepository.delete(postToDelete);
     }
 
+    @Transactional(readOnly = true)
+    public PostResponseDTO fetchPostById(long id) throws ResourceNotFoundException {
+        User currentUser = getCurrentAuthenticatedUser();
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
+        return convertToPostResponseDTO(post, currentUser);
+    }
+
 }
