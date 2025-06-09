@@ -3,6 +3,8 @@ package com.fourstars.FourStars.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +12,7 @@ import com.fourstars.FourStars.domain.Post;
 import com.fourstars.FourStars.domain.PostAttachment;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.request.post.PostRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.LikeRepository;
@@ -160,6 +163,23 @@ public class PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
         return convertToPostResponseDTO(post, currentUser);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<PostResponseDTO> fetchAllPosts(Pageable pageable) {
+        User currentUser = getCurrentAuthenticatedUser();
+
+        Page<Post> pagePost = postRepository.findAll(pageable);
+        List<PostResponseDTO> postDTOs = pagePost.getContent().stream()
+                .map(post -> convertToPostResponseDTO(post, currentUser))
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pagePost.getTotalPages(),
+                pagePost.getTotalElements());
+        return new ResultPaginationDTO<>(meta, postDTOs);
     }
 
 }

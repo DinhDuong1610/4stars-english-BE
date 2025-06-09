@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.client;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.post.PostRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
 import com.fourstars.FourStars.service.PostService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
@@ -65,5 +67,12 @@ public class PostController {
     public ResponseEntity<PostResponseDTO> getPostById(@PathVariable long id) throws ResourceNotFoundException {
         PostResponseDTO post = postService.fetchPostById(id);
         return ResponseEntity.ok(post);
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all posts with pagination")
+    public ResponseEntity<ResultPaginationDTO<PostResponseDTO>> getAllPosts(Pageable pageable) {
+        ResultPaginationDTO<PostResponseDTO> result = postService.fetchAllPosts(pageable);
+        return ResponseEntity.ok(result);
     }
 }
