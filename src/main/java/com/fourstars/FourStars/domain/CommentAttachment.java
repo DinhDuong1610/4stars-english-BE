@@ -60,7 +60,7 @@ public class CommentAttachment {
     private String originalFileName;
 
     @Column(name = "file_size") // Kích thước file tính bằng byte
-    private Long fileSize;
+    private long fileSize;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss a", timezone = "GMT+7")

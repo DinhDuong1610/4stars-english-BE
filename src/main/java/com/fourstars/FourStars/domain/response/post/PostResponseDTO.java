@@ -32,5 +32,7 @@ public class PostResponseDTO {
         private long id;
         private String fileUrl;
         private String fileType;
+        private String originalFileName;
+        private long fileSize;
     }
 }

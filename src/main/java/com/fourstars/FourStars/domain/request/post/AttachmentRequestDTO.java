@@ -21,4 +21,10 @@ public class AttachmentRequestDTO {
 
     @NotNull(message = "File type cannot be null")
     private AttachmentType fileType;
+
+    @Size(max = 255, message = "Original file name cannot exceed 255 characters")
+    private String originalFileName;
+
+    private Long fileSize;
+
 }

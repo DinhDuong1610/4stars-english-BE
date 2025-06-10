@@ -61,6 +61,8 @@ public class CommentService {
                 PostResponseDTO.AttachmentInfoDTO attDto = new PostResponseDTO.AttachmentInfoDTO();
                 attDto.setId(att.getId());
                 attDto.setFileUrl(att.getFileUrl());
+                attDto.setOriginalFileName(att.getOriginalFileName());
+                attDto.setFileSize(att.getFileSize());
                 if (att.getFileType() != null) {
                     attDto.setFileType(att.getFileType().name());
                 }
@@ -116,6 +118,8 @@ public class CommentService {
                 CommentAttachment attachment = new CommentAttachment();
                 attachment.setFileUrl(attDTO.getFileUrl());
                 attachment.setFileType(attDTO.getFileType());
+                attachment.setOriginalFileName(attDTO.getOriginalFileName());
+                attachment.setFileSize(attDTO.getFileSize());
                 comment.addAttachment(attachment);
             }
         }
