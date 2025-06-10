@@ -3,7 +3,9 @@ package com.fourstars.FourStars.controller.client;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,5 +36,16 @@ public class CommentController {
             throws ResourceNotFoundException, BadRequestException {
         CommentResponseDTO newComment = commentService.createComment(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(newComment);
+    }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing comment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<CommentResponseDTO> updateComment(
+            @PathVariable long id,
+            @RequestBody @Valid CommentRequestDTO requestDTO)
+            throws ResourceNotFoundException, BadRequestException {
+        CommentResponseDTO updatedComment = commentService.updateComment(id, requestDTO);
+        return ResponseEntity.ok(updatedComment);
     }
 }

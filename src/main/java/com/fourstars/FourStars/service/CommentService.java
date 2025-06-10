@@ -120,4 +120,21 @@ public class CommentService {
         Comment savedComment = commentRepository.save(comment);
         return convertToCommentResponseDTO(savedComment);
     }
+
+    @Transactional
+    public CommentResponseDTO updateComment(long id, CommentRequestDTO requestDTO)
+            throws ResourceNotFoundException, BadRequestException {
+        User currentUser = getCurrentAuthenticatedUser();
+
+        Comment commentDB = commentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + id));
+
+        if (commentDB.getUser().getId() != currentUser.getId()) {
+            throw new BadRequestException("You do not have permission to update this comment.");
+        }
+
+        commentDB.setContent(requestDTO.getContent());
+        Comment updatedComment = commentRepository.save(commentDB);
+        return convertToCommentResponseDTO(updatedComment);
+    }
 }
