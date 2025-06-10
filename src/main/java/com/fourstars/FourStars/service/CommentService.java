@@ -137,4 +137,19 @@ public class CommentService {
         Comment updatedComment = commentRepository.save(commentDB);
         return convertToCommentResponseDTO(updatedComment);
     }
+
+    @Transactional
+    public void deleteComment(long id) throws ResourceNotFoundException, BadRequestException {
+        User currentUser = getCurrentAuthenticatedUser();
+
+        Comment commentToDelete = commentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + id));
+
+        if (commentToDelete.getUser().getId() != currentUser.getId() &&
+                commentToDelete.getPost().getUser().getId() != currentUser.getId()) {
+            throw new BadRequestException("You do not have permission to delete this comment.");
+        }
+
+        commentRepository.delete(commentToDelete);
+    }
 }

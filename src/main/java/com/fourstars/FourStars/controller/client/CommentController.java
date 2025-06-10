@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.client;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,5 +48,14 @@ public class CommentController {
             throws ResourceNotFoundException, BadRequestException {
         CommentResponseDTO updatedComment = commentService.updateComment(id, requestDTO);
         return ResponseEntity.ok(updatedComment);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a comment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deleteComment(@PathVariable long id)
+            throws ResourceNotFoundException, BadRequestException {
+        commentService.deleteComment(id);
+        return ResponseEntity.noContent().build();
     }
 }
