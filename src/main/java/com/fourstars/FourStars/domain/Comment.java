@@ -1,6 +1,7 @@
 package com.fourstars.FourStars.domain;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -94,5 +95,10 @@ public class Comment {
 
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonIgnore
-    private List<CommentAttachment> attachments;
+    private List<CommentAttachment> attachments = new ArrayList<>();
+
+    public void addAttachment(CommentAttachment attachment) {
+        this.attachments.add(attachment);
+        attachment.setComment(this);
+    }
 }
