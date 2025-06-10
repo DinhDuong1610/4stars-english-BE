@@ -1,9 +1,11 @@
 package com.fourstars.FourStars.controller.client;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.comment.CommentRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.comment.CommentResponseDTO;
 import com.fourstars.FourStars.service.CommentService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
@@ -57,5 +60,14 @@ public class CommentController {
             throws ResourceNotFoundException, BadRequestException {
         commentService.deleteComment(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/post/{postId}")
+    @ApiMessage("Fetch comments for a specific post")
+    public ResponseEntity<ResultPaginationDTO<CommentResponseDTO>> getCommentsByPost(
+            @PathVariable long postId,
+            Pageable pageable) {
+        ResultPaginationDTO<CommentResponseDTO> result = commentService.fetchCommentsByPost(postId, pageable);
+        return ResponseEntity.ok(result);
     }
 }

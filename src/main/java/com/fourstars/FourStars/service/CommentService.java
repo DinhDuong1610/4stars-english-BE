@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +16,7 @@ import com.fourstars.FourStars.domain.CommentAttachment;
 import com.fourstars.FourStars.domain.Post;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.request.comment.CommentRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.comment.CommentResponseDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
 import com.fourstars.FourStars.repository.CommentRepository;
@@ -151,5 +154,22 @@ public class CommentService {
         }
 
         commentRepository.delete(commentToDelete);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<CommentResponseDTO> fetchCommentsByPost(long postId, Pageable pageable) {
+        Page<Comment> topLevelCommentsPage = commentRepository.findByPostIdAndParentCommentIsNull(postId, pageable);
+
+        List<CommentResponseDTO> commentDTOs = topLevelCommentsPage.getContent().stream()
+                .map(this::convertToCommentResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                topLevelCommentsPage.getTotalPages(),
+                topLevelCommentsPage.getTotalElements());
+
+        return new ResultPaginationDTO<>(meta, commentDTOs);
     }
 }
