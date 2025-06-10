@@ -10,4 +10,6 @@ import lombok.Setter;
 public class FileUploadResponseDTO {
     private String fileName;
     private String fileUrl;
+    private String originalFileName;
+    private long fileSize;
 }

@@ -16,10 +16,13 @@ import java.util.UUID;
 @Service
 public class FileService {
 
+    public record SavedFileInfo(String uniqueFilename, String originalFilename, long fileSize) {
+    }
+
     @Value("${fourstars.upload-dir}")
     private String uploadDir;
 
-    public String saveFile(MultipartFile file) throws IOException {
+    public SavedFileInfo saveFile(MultipartFile file) throws IOException {
         if (file.isEmpty()) {
             throw new BadRequestException("File is empty. Please select a file to upload.");
         }
@@ -30,8 +33,11 @@ public class FileService {
             Files.createDirectories(uploadPath);
         }
 
-        // Tạo tên file duy nhất để tránh trùng lặp
+        // Lấy thông tin từ file gốc
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+        long fileSize = file.getSize();
+
+        // Tạo tên file duy nhất để tránh trùng lặp
         String fileExtension = "";
         try {
             fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
@@ -46,7 +52,7 @@ public class FileService {
         // Copy file vào thư mục đích
         Files.copy(file.getInputStream(), destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
-        // Trả về tên file đã lưu
-        return uniqueFilename;
+        // Trả về một record chứa tất cả thông tin cần thiết
+        return new SavedFileInfo(uniqueFilename, originalFilename, fileSize);
     }
 }

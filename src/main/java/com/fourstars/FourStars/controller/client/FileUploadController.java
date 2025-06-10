@@ -34,13 +34,15 @@ public class FileUploadController {
             throw new BadRequestException("File is empty.");
         }
 
-        String savedFilename = fileService.saveFile(file);
+        FileService.SavedFileInfo savedFileInfo = fileService.saveFile(file);
 
-        // Tạo URL để client có thể truy cập file
-        // Ví dụ: http://localhost:8080/uploads/ten-file-da-luu.jpg
-        String fileUrl = "/uploads/" + savedFilename;
+        String fileUrl = "/uploads/" + savedFileInfo.uniqueFilename();
 
-        FileUploadResponseDTO response = new FileUploadResponseDTO(savedFilename, fileUrl);
+        FileUploadResponseDTO response = new FileUploadResponseDTO(
+                savedFileInfo.uniqueFilename(),
+                fileUrl,
+                savedFileInfo.originalFilename(),
+                savedFileInfo.fileSize());
         return ResponseEntity.ok(response);
     }
 }
