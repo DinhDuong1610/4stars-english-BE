@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -212,7 +213,12 @@ public class VocabularyService {
     @Transactional(readOnly = true)
     public List<VocabularyResponseDTO> getVocabulariesForReview(int limit) throws ResourceNotFoundException {
         User user = getCurrentAuthenticatedUser();
-        List<Vocabulary> vocabularies = vocabularyRepository.findVocabulariesForReview(user.getId(), limit);
+
+        Pageable pageable = PageRequest.of(0, limit);
+
+        List<Vocabulary> vocabularies = vocabularyRepository.findVocabulariesForReview(user.getId(), Instant.now(),
+                pageable);
+
         return vocabularies.stream()
                 .map(this::convertToVocabularyResponseDTO)
                 .collect(Collectors.toList());

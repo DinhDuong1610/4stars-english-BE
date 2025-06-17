@@ -1,7 +1,9 @@
 package com.fourstars.FourStars.repository;
 
+import java.time.Instant;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -18,13 +20,20 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long>, J
 
     boolean existsByCategoryId(Long categoryId);
 
-    // Lấy danh sách từ vựng cần ôn tập cho một người dùng cụ thể
-    // (những từ có nextReviewAt trong quá khứ hoặc hiện tại)
-    @Query(value = "SELECT v.* FROM vocabularies v " +
-            "JOIN user_vocabularies uv ON v.id = uv.vocabulary_id " +
-            "WHERE uv.user_id = :userId AND uv.next_review_at <= NOW() " +
-            "ORDER BY uv.next_review_at ASC " +
-            "LIMIT :limit", nativeQuery = true)
-    List<Vocabulary> findVocabulariesForReview(@Param("userId") Long userId, @Param("limit") int limit);
+    // @Query(value = "SELECT v.* FROM vocabularies v " +
+    // "JOIN user_vocabularies uv ON v.id = uv.vocabulary_id " +
+    // "WHERE uv.user_id = :userId AND uv.next_review_at <= NOW() " +
+    // "ORDER BY uv.next_review_at ASC " +
+    // "LIMIT :limit", nativeQuery = true)
+    // List<Vocabulary> findVocabulariesForReview(@Param("userId") Long userId,
+    // @Param("limit") int limit);
+
+    @Query("SELECT v FROM Vocabulary v JOIN v.userLearningProgress uv " +
+            "WHERE uv.user.id = :userId AND uv.nextReviewAt <= :now " +
+            "ORDER BY uv.nextReviewAt ASC")
+    List<Vocabulary> findVocabulariesForReview(
+            @Param("userId") Long userId,
+            @Param("now") Instant now,
+            Pageable pageable);
 
 }
