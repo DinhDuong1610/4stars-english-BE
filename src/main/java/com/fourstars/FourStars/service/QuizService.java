@@ -2,6 +2,7 @@ package com.fourstars.FourStars.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,15 +18,21 @@ import com.fourstars.FourStars.domain.Question;
 import com.fourstars.FourStars.domain.QuestionChoice;
 import com.fourstars.FourStars.domain.Quiz;
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.UserAnswer;
 import com.fourstars.FourStars.domain.UserQuizAttempt;
 import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.quiz.QuestionChoiceDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuestionDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
+import com.fourstars.FourStars.domain.request.quiz.SubmitQuizRequestDTO;
+import com.fourstars.FourStars.domain.request.quiz.UserAnswerRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.quiz.QuestionAnswerDetailDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuestionChoiceForUserDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuestionForUserDTO;
+import com.fourstars.FourStars.domain.response.quiz.QuizAttemptResponseDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuizForUserAttemptDTO;
+import com.fourstars.FourStars.domain.response.quiz.UserAnswerResponseDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.QuestionRepository;
 import com.fourstars.FourStars.repository.QuizRepository;
@@ -33,7 +40,9 @@ import com.fourstars.FourStars.repository.UserQuizAttemptRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.constant.QuestionType;
 import com.fourstars.FourStars.util.constant.QuizStatus;
+import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.persistence.criteria.Predicate;
@@ -178,6 +187,71 @@ public class QuizService {
         return new QuizForUserAttemptDTO(savedAttempt.getId(), quiz.getTitle(), questionForUserDTOs);
     }
 
+    @Transactional
+    public QuizAttemptResponseDTO submitQuiz(SubmitQuizRequestDTO submitDTO) {
+        User currentUser = getCurrentAuthenticatedUser();
+        UserQuizAttempt attempt = userQuizAttemptRepository
+                .findByIdAndUserId(submitDTO.getUserQuizAttemptId(), currentUser.getId())
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Quiz attempt not found or you don't have permission."));
+
+        if (attempt.getStatus() == QuizStatus.COMPLETED) {
+            throw new BadRequestException("This quiz has already been completed.");
+        }
+
+        attempt.getUserAnswers().clear();
+        int totalScore = 0;
+
+        for (UserAnswerRequestDTO ansReq : submitDTO.getAnswers()) {
+            Question question = questionRepository.findById(ansReq.getQuestionId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + ansReq.getQuestionId()));
+
+            UserAnswer userAnswer = new UserAnswer();
+            userAnswer.setUserQuizAttempt(attempt); // Quan trọng: set mối quan hệ
+            userAnswer.setQuestion(question);
+            userAnswer.setUserAnswerText(ansReq.getUserAnswerText());
+
+            boolean isCorrect = false;
+            if (question.getQuestionType() == QuestionType.MULTIPLE_CHOICE_TEXT
+                    || question.getQuestionType() == QuestionType.MULTIPLE_CHOICE_IMAGE) {
+                QuestionChoice correctChoice = question.getChoices().stream()
+                        .filter(c -> c.isCorrect())
+                        .findFirst()
+                        .orElse(null);
+
+                if (correctChoice != null && ansReq.getSelectedChoiceId() != null
+                        && correctChoice.getId() == ansReq.getSelectedChoiceId()) {
+                    isCorrect = true;
+                }
+                if (ansReq.getSelectedChoiceId() != null) {
+                    QuestionChoice choiceRef = new QuestionChoice();
+                    choiceRef.setId(ansReq.getSelectedChoiceId());
+                    userAnswer.setSelectedChoice(choiceRef);
+                }
+            } else {
+                if (question.getCorrectSentence() != null
+                        && question.getCorrectSentence().equalsIgnoreCase(ansReq.getUserAnswerText())) {
+                    isCorrect = true;
+                }
+            }
+
+            userAnswer.setCorrect(isCorrect);
+            if (isCorrect) {
+                userAnswer.setPointsAwarded(question.getPoints());
+                totalScore += question.getPoints();
+            }
+
+            attempt.getUserAnswers().add(userAnswer);
+        }
+
+        attempt.setScore(totalScore);
+        attempt.setStatus(QuizStatus.COMPLETED);
+        attempt.setCompletedAt(Instant.now());
+
+        UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
+        return convertToQuizAttemptResponseDTO(savedAttempt);
+    }
+
     private QuizDTO convertToQuizDTO(Quiz quiz) {
         QuizDTO dto = new QuizDTO();
         dto.setId(quiz.getId());
@@ -222,7 +296,7 @@ public class QuizService {
         dto.setId(c.getId());
         dto.setContent(c.getContent());
         dto.setImageUrl(c.getImageUrl());
-        dto.setCorrect(c.isCorrect());
+        dto.setIsCorrect(c.isCorrect());
         return dto;
     }
 
@@ -258,7 +332,7 @@ public class QuizService {
         c.setQuestion(parentQuestion);
         c.setContent(cDto.getContent());
         c.setImageUrl(cDto.getImageUrl());
-        c.setCorrect(cDto.isCorrect());
+        c.setCorrect(cDto.getIsCorrect());
         return c;
     }
 
@@ -276,6 +350,49 @@ public class QuizService {
                     .map(c -> new QuestionChoiceForUserDTO(c.getId(), c.getContent(), c.getImageUrl()))
                     .collect(Collectors.toSet()));
         }
+        return dto;
+    }
+
+    private QuizAttemptResponseDTO convertToQuizAttemptResponseDTO(UserQuizAttempt attempt) {
+        QuizAttemptResponseDTO dto = new QuizAttemptResponseDTO();
+        dto.setId(attempt.getId());
+        dto.setQuizId(attempt.getQuiz().getId());
+        dto.setQuizTitle(attempt.getQuiz().getTitle());
+        dto.setStatus(attempt.getStatus());
+        dto.setScore(attempt.getScore());
+        dto.setStartedAt(attempt.getStartedAt());
+        dto.setCompletedAt(attempt.getCompletedAt());
+
+        int totalPoints = attempt.getQuiz().getQuestions().stream().mapToInt(Question::getPoints).sum();
+        dto.setTotalPoints(totalPoints);
+
+        List<UserAnswerResponseDTO> answerDTOs = attempt.getUserAnswers().stream().map(ans -> {
+            UserAnswerResponseDTO ansDto = new UserAnswerResponseDTO();
+            ansDto.setQuestionId(ans.getQuestion().getId());
+            ansDto.setQuestionPrompt(ans.getQuestion().getPrompt());
+            ansDto.setUserAnswerText(ans.getUserAnswerText());
+            if (ans.getSelectedChoice() != null) {
+                ansDto.setSelectedChoiceId(ans.getSelectedChoice().getId());
+            }
+            ansDto.setCorrect(ans.isCorrect());
+            ansDto.setPointsAwarded(ans.getPointsAwarded());
+
+            QuestionAnswerDetailDTO correctAnswerDetail = new QuestionAnswerDetailDTO();
+            correctAnswerDetail.setCorrectText(ans.getQuestion().getCorrectSentence());
+            QuestionChoiceDTO correctChoiceDto = ans.getQuestion().getChoices().stream()
+                    .filter(c -> c.isCorrect())
+                    .findFirst()
+                    .map(this::convertToQuestionChoiceDTO)
+                    .orElse(null);
+
+            correctAnswerDetail.setCorrectChoice(correctChoiceDto);
+            ansDto.setCorrectAnswer(correctAnswerDetail);
+
+            return ansDto;
+        }).collect(Collectors.toList());
+
+        dto.setUserAnswers(answerDTOs);
+
         return dto;
     }
 

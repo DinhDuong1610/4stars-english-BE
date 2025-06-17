@@ -16,5 +16,5 @@ public class QuestionChoiceDTO {
     private String imageUrl;
 
     @NotNull(message = "You must specify if the choice is correct.")
-    private boolean isCorrect;
+    private Boolean isCorrect;
 }
