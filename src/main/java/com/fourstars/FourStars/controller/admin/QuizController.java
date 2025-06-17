@@ -2,7 +2,9 @@ package com.fourstars.FourStars.controller.admin;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,5 +30,12 @@ public class QuizController {
     public ResponseEntity<QuizDTO> createQuiz(@Valid @RequestBody QuizDTO quizDTO) {
         QuizDTO createdQuiz = quizService.createQuiz(quizDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdQuiz);
+    }
+
+    @PutMapping("/{id}")
+    @ApiMessage("Update an existing quiz")
+    public ResponseEntity<QuizDTO> updateQuiz(@PathVariable("id") long id, @Valid @RequestBody QuizDTO quizDTO) {
+        QuizDTO updatedQuiz = quizService.updateQuiz(id, quizDTO);
+        return ResponseEntity.ok(updatedQuiz);
     }
 }

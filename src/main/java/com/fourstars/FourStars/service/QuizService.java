@@ -72,6 +72,34 @@ public class QuizService {
         return convertToQuizDTO(savedQuiz);
     }
 
+    @Transactional
+    public QuizDTO updateQuiz(long quizId, QuizDTO quizDto) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
+
+        Category category = categoryRepository.findById(quizDto.getCategoryId())
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Category not found with id: " + quizDto.getCategoryId()));
+
+        quiz.setTitle(quizDto.getTitle());
+        quiz.setDescription(quizDto.getDescription());
+        quiz.setCategory(category);
+
+        quiz.getQuestions().clear();
+
+        if (quizDto.getQuestions() != null) {
+            Set<Question> newQuestions = quizDto.getQuestions().stream()
+                    .map(qDto -> convertQuestionDtoToEntity(qDto, quiz))
+                    .collect(Collectors.toSet());
+
+            quiz.getQuestions().addAll(newQuestions);
+        }
+
+        Quiz updatedQuiz = quizRepository.save(quiz);
+
+        return convertToQuizDTO(updatedQuiz);
+    }
+
     private QuizDTO convertToQuizDTO(Quiz quiz) {
         QuizDTO dto = new QuizDTO();
         dto.setId(quiz.getId());
