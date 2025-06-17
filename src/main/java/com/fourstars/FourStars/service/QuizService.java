@@ -1,8 +1,13 @@
 package com.fourstars.FourStars.service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +20,7 @@ import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.quiz.QuestionChoiceDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuestionDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.QuestionRepository;
 import com.fourstars.FourStars.repository.QuizRepository;
@@ -23,6 +29,8 @@ import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class QuizService {
@@ -114,6 +122,33 @@ public class QuizService {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
         return convertToQuizDTO(quiz);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<QuizDTO> getAllQuizzesForAdmin(Pageable pageable, Long categoryId) {
+        Specification<Quiz> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Quiz> quizPage = quizRepository.findAll(spec, pageable);
+
+        List<QuizDTO> quizDTOs = quizPage.getContent().stream()
+                .map(this::convertToQuizDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                quizPage.getNumber() + 1,
+                quizPage.getSize(),
+                quizPage.getTotalPages(),
+                quizPage.getTotalElements());
+
+        return new ResultPaginationDTO<>(meta, quizDTOs);
     }
 
     private QuizDTO convertToQuizDTO(Quiz quiz) {

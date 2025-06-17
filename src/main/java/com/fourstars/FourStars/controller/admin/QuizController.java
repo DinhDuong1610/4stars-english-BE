@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.controller.admin;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -9,9 +10,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.service.QuizService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
@@ -52,5 +55,14 @@ public class QuizController {
     @ApiMessage("Get a quiz by id for admin")
     public ResponseEntity<QuizDTO> getQuizById(@PathVariable("id") long id) {
         return ResponseEntity.ok(quizService.getQuizForAdmin(id));
+    }
+
+    @GetMapping
+    @ApiMessage("Get all quizzes for admin with filtering")
+    public ResponseEntity<ResultPaginationDTO<QuizDTO>> getAllQuizzes(
+            Pageable pageable,
+            @RequestParam(name = "categoryId", required = false) Long categoryId) {
+
+        return ResponseEntity.ok(quizService.getAllQuizzesForAdmin(pageable, categoryId));
     }
 }
