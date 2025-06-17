@@ -20,6 +20,7 @@ import com.fourstars.FourStars.domain.key.UserVocabularyId;
 import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.vocabulary.UserVocabularyResponseDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.UserRepository;
@@ -79,6 +80,22 @@ public class VocabularyService {
         dto.setUpdatedAt(vocab.getUpdatedAt());
         dto.setCreatedBy(vocab.getCreatedBy());
         dto.setUpdatedBy(vocab.getUpdatedBy());
+        return dto;
+    }
+
+    private UserVocabularyResponseDTO convertToUserVocabularyResponseDTO(UserVocabulary userVocab) {
+        if (userVocab == null) {
+            return null;
+        }
+        UserVocabularyResponseDTO dto = new UserVocabularyResponseDTO();
+        dto.setUserId(userVocab.getId().getUserId());
+        dto.setVocabularyId(userVocab.getId().getVocabularyId());
+        dto.setLevel(userVocab.getLevel());
+        dto.setRepetitions(userVocab.getRepetitions());
+        dto.setEaseFactor(userVocab.getEaseFactor());
+        dto.setReviewInterval(userVocab.getReviewInterval());
+        dto.setLastReviewedAt(userVocab.getLastReviewedAt());
+        dto.setNextReviewAt(userVocab.getNextReviewAt());
         return dto;
     }
 
@@ -245,5 +262,26 @@ public class VocabularyService {
         userVocabulary = userVocabularyRepository.save(userVocabulary);
 
         return userVocabulary;
+    }
+
+    @Transactional
+    public UserVocabularyResponseDTO addVocabularyToNotebook(Long vocabularyId) {
+        User user = getCurrentAuthenticatedUser();
+
+        UserVocabularyId userVocabularyId = new UserVocabularyId(user.getId(), vocabularyId);
+
+        Optional<UserVocabulary> existingEntry = userVocabularyRepository.findById(userVocabularyId);
+        if (existingEntry.isPresent()) {
+            return convertToUserVocabularyResponseDTO(existingEntry.get());
+        }
+
+        Vocabulary vocab = vocabularyRepository.findById(vocabularyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + vocabularyId));
+
+        UserVocabulary newUserVocabulary = new UserVocabulary(user, vocab);
+
+        UserVocabulary savedEntry = userVocabularyRepository.save(newUserVocabulary);
+
+        return convertToUserVocabularyResponseDTO(savedEntry);
     }
 }
