@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -16,11 +17,15 @@ import com.fourstars.FourStars.domain.Question;
 import com.fourstars.FourStars.domain.QuestionChoice;
 import com.fourstars.FourStars.domain.Quiz;
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.UserQuizAttempt;
 import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.quiz.QuestionChoiceDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuestionDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.domain.response.quiz.QuestionChoiceForUserDTO;
+import com.fourstars.FourStars.domain.response.quiz.QuestionForUserDTO;
+import com.fourstars.FourStars.domain.response.quiz.QuizForUserAttemptDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.QuestionRepository;
 import com.fourstars.FourStars.repository.QuizRepository;
@@ -28,6 +33,7 @@ import com.fourstars.FourStars.repository.UserQuizAttemptRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.constant.QuizStatus;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import jakarta.persistence.criteria.Predicate;
@@ -151,6 +157,27 @@ public class QuizService {
         return new ResultPaginationDTO<>(meta, quizDTOs);
     }
 
+    @Transactional
+    public QuizForUserAttemptDTO startQuiz(long quizId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
+
+        UserQuizAttempt attempt = new UserQuizAttempt();
+        attempt.setUser(currentUser);
+        attempt.setQuiz(quiz);
+        attempt.setStatus(QuizStatus.IN_PROGRESS);
+        attempt.setStartedAt(Instant.now());
+
+        UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
+
+        List<QuestionForUserDTO> questionForUserDTOs = quiz.getQuestions().stream()
+                .map(this::convertToQuestionForUserDTO)
+                .collect(Collectors.toList());
+
+        return new QuizForUserAttemptDTO(savedAttempt.getId(), quiz.getTitle(), questionForUserDTOs);
+    }
+
     private QuizDTO convertToQuizDTO(Quiz quiz) {
         QuizDTO dto = new QuizDTO();
         dto.setId(quiz.getId());
@@ -234,4 +261,22 @@ public class QuizService {
         c.setCorrect(cDto.isCorrect());
         return c;
     }
+
+    private QuestionForUserDTO convertToQuestionForUserDTO(Question q) {
+        QuestionForUserDTO dto = new QuestionForUserDTO();
+        dto.setId(q.getId());
+        dto.setQuestionType(q.getQuestionType());
+        dto.setPrompt(q.getPrompt());
+        dto.setImageUrl(q.getImageUrl());
+        dto.setAudioUrl(q.getAudioUrl());
+        dto.setTextToFill(q.getTextToFill());
+        dto.setPoints(q.getPoints());
+        if (q.getChoices() != null) {
+            dto.setChoices(q.getChoices().stream()
+                    .map(c -> new QuestionChoiceForUserDTO(c.getId(), c.getContent(), c.getImageUrl()))
+                    .collect(Collectors.toSet()));
+        }
+        return dto;
+    }
+
 }
