@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -45,5 +46,11 @@ public class QuizController {
     public ResponseEntity<Void> deleteQuiz(@PathVariable("id") long id) {
         quizService.deleteQuiz(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    @ApiMessage("Get a quiz by id for admin")
+    public ResponseEntity<QuizDTO> getQuizById(@PathVariable("id") long id) {
+        return ResponseEntity.ok(quizService.getQuizForAdmin(id));
     }
 }

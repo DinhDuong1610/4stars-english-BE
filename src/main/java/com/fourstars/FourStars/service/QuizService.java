@@ -109,6 +109,13 @@ public class QuizService {
         quizRepository.deleteById(quizId);
     }
 
+    @Transactional(readOnly = true)
+    public QuizDTO getQuizForAdmin(long quizId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
+        return convertToQuizDTO(quiz);
+    }
+
     private QuizDTO convertToQuizDTO(Quiz quiz) {
         QuizDTO dto = new QuizDTO();
         dto.setId(quiz.getId());
