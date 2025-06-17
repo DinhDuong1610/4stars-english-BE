@@ -55,16 +55,19 @@ public class QuizService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
+    private final VocabularyService vocabularyService;
 
     public QuizService(QuizRepository quizRepository, QuestionRepository questionRepository,
             UserQuizAttemptRepository userQuizAttemptRepository, UserRepository userRepository,
-            CategoryRepository categoryRepository, VocabularyRepository vocabularyRepository) {
+            CategoryRepository categoryRepository, VocabularyRepository vocabularyRepository,
+            VocabularyService vocabularyService) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
         this.userQuizAttemptRepository = userQuizAttemptRepository;
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
         this.vocabularyRepository = vocabularyRepository;
+        this.vocabularyService = vocabularyService;
     }
 
     private User getCurrentAuthenticatedUser() {
@@ -207,7 +210,7 @@ public class QuizService {
                     .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + ansReq.getQuestionId()));
 
             UserAnswer userAnswer = new UserAnswer();
-            userAnswer.setUserQuizAttempt(attempt); // Quan trọng: set mối quan hệ
+            userAnswer.setUserQuizAttempt(attempt);
             userAnswer.setQuestion(question);
             userAnswer.setUserAnswerText(ansReq.getUserAnswerText());
 
@@ -249,6 +252,22 @@ public class QuizService {
         attempt.setCompletedAt(Instant.now());
 
         UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
+
+        Set<Long> relatedVocabularyIds = new HashSet<>();
+        for (UserAnswer answer : savedAttempt.getUserAnswers()) {
+            if (answer.getQuestion().getRelatedVocabulary() != null) {
+                relatedVocabularyIds.add(answer.getQuestion().getRelatedVocabulary().getId());
+            }
+        }
+
+        relatedVocabularyIds.forEach(vocabId -> {
+            try {
+                vocabularyService.addVocabularyToNotebook(vocabId);
+            } catch (Exception e) {
+                System.err.println("Could not add vocabulary " + vocabId + " to notebook. Error: " + e.getMessage());
+            }
+        });
+
         return convertToQuizAttemptResponseDTO(savedAttempt);
     }
 
