@@ -252,6 +252,16 @@ public class QuizService {
         return convertToQuizAttemptResponseDTO(savedAttempt);
     }
 
+    @Transactional(readOnly = true)
+    public QuizAttemptResponseDTO getQuizResult(long attemptId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        UserQuizAttempt attempt = userQuizAttemptRepository.findByIdAndUserId(attemptId, currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Quiz attempt result not found or you don't have permission."));
+
+        return convertToQuizAttemptResponseDTO(attempt);
+    }
+
     private QuizDTO convertToQuizDTO(Quiz quiz) {
         QuizDTO dto = new QuizDTO();
         dto.setId(quiz.getId());

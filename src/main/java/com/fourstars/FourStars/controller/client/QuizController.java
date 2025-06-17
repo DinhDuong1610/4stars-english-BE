@@ -2,6 +2,7 @@ package com.fourstars.FourStars.controller.client;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,5 +38,12 @@ public class QuizController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<QuizAttemptResponseDTO> submitQuiz(@Valid @RequestBody SubmitQuizRequestDTO submitDTO) {
         return ResponseEntity.ok(quizService.submitQuiz(submitDTO));
+    }
+
+    @GetMapping("/attempts/{attemptId}")
+    @ApiMessage("Get the result of a quiz attempt")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<QuizAttemptResponseDTO> getQuizResult(@PathVariable long attemptId) {
+        return ResponseEntity.ok(quizService.getQuizResult(attemptId));
     }
 }
