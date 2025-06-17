@@ -100,6 +100,15 @@ public class QuizService {
         return convertToQuizDTO(updatedQuiz);
     }
 
+    @Transactional
+    public void deleteQuiz(long quizId) {
+        if (!quizRepository.existsById(quizId)) {
+            throw new ResourceNotFoundException("Quiz not found with id: " + quizId);
+        }
+
+        quizRepository.deleteById(quizId);
+    }
+
     private QuizDTO convertToQuizDTO(Quiz quiz) {
         QuizDTO dto = new QuizDTO();
         dto.setId(quiz.getId());
