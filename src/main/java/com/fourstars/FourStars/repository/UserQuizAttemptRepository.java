@@ -16,5 +16,5 @@ import com.fourstars.FourStars.util.constant.QuizStatus;
 public interface UserQuizAttemptRepository extends JpaRepository<UserQuizAttempt, Long> {
     Optional<UserQuizAttempt> findByUserAndQuizAndStatus(User user, Quiz quiz, QuizStatus status);
 
-    Page<UserQuizAttempt> findByUserId(long userId, Pageable pageable);
+    Optional<UserQuizAttempt> findByIdAndUserId(long id, long userId);
 }

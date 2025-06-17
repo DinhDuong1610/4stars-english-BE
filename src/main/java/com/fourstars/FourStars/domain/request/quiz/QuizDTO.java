@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -24,7 +24,8 @@ public class QuizDTO {
     private String categoryName;
 
     private Instant createdAt;
+
     private Instant updatedAt;
 
-    private List<QuestionDTO> questions;
+    private Set<QuestionDTO> questions;
 }

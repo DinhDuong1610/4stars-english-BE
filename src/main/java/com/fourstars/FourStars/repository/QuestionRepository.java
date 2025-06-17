@@ -7,4 +7,5 @@ import com.fourstars.FourStars.domain.Question;
 
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
+    void deleteByQuizId(long quizId);
 }
