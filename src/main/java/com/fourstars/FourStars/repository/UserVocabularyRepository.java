@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
 import com.fourstars.FourStars.domain.key.UserVocabularyId;
 
@@ -20,6 +21,10 @@ public interface UserVocabularyRepository
     UserVocabulary findByUserIdAndVocabularyId(Long userId, Long vocabularyId);
 
     Optional<UserVocabulary> findById(UserVocabularyId id);
+
+    List<UserVocabulary> findByUser(User user);
+
+    int countByUser(User user);
 
     @Modifying
     @Query("DELETE FROM UserVocabulary uv WHERE uv.id.vocabularyId = :vocabularyId")

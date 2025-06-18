@@ -11,11 +11,14 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import com.fourstars.FourStars.domain.Subscription;
+import com.fourstars.FourStars.domain.User;
 
 @Repository
 public interface SubscriptionRepository
         extends JpaRepository<Subscription, Long>, JpaSpecificationExecutor<Subscription> {
     boolean existsByPlanIdAndActiveTrue(Long planId);
+
+    Optional<Subscription> findTopByUserOrderByEndDateDesc(User user);
 
     Page<Subscription> findByUserId(Long userId, Pageable pageable);
 

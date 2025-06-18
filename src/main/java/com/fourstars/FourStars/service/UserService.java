@@ -1,7 +1,11 @@
 package com.fourstars.FourStars.service;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -16,17 +20,28 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Badge;
+import com.fourstars.FourStars.domain.Plan;
 import com.fourstars.FourStars.domain.Role;
+import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.UserVocabulary;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.auth.ResCreateUserDTO;
+import com.fourstars.FourStars.domain.response.badge.BadgeResponseDTO;
+import com.fourstars.FourStars.domain.response.dashboard.DashboardResponseDTO;
+import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.domain.response.user.UserResponseDTO;
 import com.fourstars.FourStars.repository.BadgeRepository;
+import com.fourstars.FourStars.repository.PlanRepository;
 import com.fourstars.FourStars.repository.RoleRepository;
+import com.fourstars.FourStars.repository.SubscriptionRepository;
+import com.fourstars.FourStars.repository.UserQuizAttemptRepository;
 import com.fourstars.FourStars.repository.UserRepository;
+import com.fourstars.FourStars.repository.UserVocabularyRepository;
+import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -36,15 +51,30 @@ public class UserService implements UserDetailsService {
     private final RoleRepository roleRepository;
     private final BadgeRepository badgeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserVocabularyRepository userVocabularyRepository;
+    private final UserQuizAttemptRepository userQuizAttemptRepository;
+    private final PlanRepository planRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final SecurityUtil securityUtil;
 
     public UserService(UserRepository userRepository,
             RoleRepository roleRepository,
             BadgeRepository badgeRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            UserVocabularyRepository userVocabularyRepository,
+            UserQuizAttemptRepository userQuizAttemptRepository,
+            PlanRepository planRepository,
+            SubscriptionRepository subscriptionRepository,
+            SecurityUtil securityUtil) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.badgeRepository = badgeRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userVocabularyRepository = userVocabularyRepository;
+        this.userQuizAttemptRepository = userQuizAttemptRepository;
+        this.planRepository = planRepository;
+        this.subscriptionRepository = subscriptionRepository;
+        this.securityUtil = securityUtil;
     }
 
     private UserResponseDTO convertToUserResponseDTO(User user) {
@@ -333,5 +363,75 @@ public class UserService implements UserDetailsService {
                 userPage.getTotalElements());
 
         return new ResultPaginationDTO<>(meta, userDTOs);
+    }
+
+    public DashboardResponseDTO getUserDashboard() {
+        User currentUser = getCurrentAuthenticatedUser();
+        DashboardResponseDTO dashboard = new DashboardResponseDTO();
+
+        // 1. Tổng số từ vựng trong sổ tay
+        dashboard.setTotalVocabulary(userVocabularyRepository.countByUser(currentUser));
+
+        // 2. Số lượng từ ở mỗi cấp độ SM-2
+        Map<Integer, Integer> levelCounts = new HashMap<>();
+        List<UserVocabulary> userVocabularies = userVocabularyRepository.findByUser(currentUser);
+        for (UserVocabulary uv : userVocabularies) {
+            levelCounts.put(uv.getLevel(), levelCounts.getOrDefault(uv.getLevel(), 0) + 1);
+        }
+        dashboard.setVocabularyLevelCounts(levelCounts);
+
+        // 3. Số bài quiz đã hoàn thành
+        dashboard.setTotalQuizzesCompleted(userQuizAttemptRepository.countByUser(currentUser));
+
+        // 4. Điểm số trung bình của các bài quiz
+        Double averageScore = userQuizAttemptRepository.calculateAverageScoreByUser(currentUser);
+        dashboard.setAverageQuizScore(averageScore != null ? averageScore : 0.0);
+
+        // 5. Chuỗi ngày học hiện tại
+        dashboard.setCurrentStreak(currentUser.getStreakCount() != null ? currentUser.getStreakCount() : 0);
+
+        // 6. Huy hiệu đã đạt được
+        dashboard.setBadges(this.convertToBadgeResponseDTO(currentUser.getBadge()));
+
+        // 7. Trạng thái gói học phí
+        Subscription currentSubscription = subscriptionRepository.findTopByUserOrderByEndDateDesc(currentUser)
+                .orElse(null);
+        if (currentSubscription != null && currentSubscription.getEndDate().isAfter(Instant.now())) {
+            PlanResponseDTO planDTO = convertToPlanResponseDTO(currentSubscription.getPlan());
+            dashboard.setCurrentPlan(planDTO);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            dashboard.setSubscriptionExpiryDate(currentSubscription.getEndDate()
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .format(formatter));
+        } else {
+            dashboard.setCurrentPlan(null);
+            dashboard.setSubscriptionExpiryDate(null);
+        }
+
+        return dashboard;
+    }
+
+    private User getCurrentAuthenticatedUser() {
+        return userRepository.findByEmail(securityUtil.getCurrentUserLogin()
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"))).orElse(null);
+    }
+
+    private BadgeResponseDTO convertToBadgeResponseDTO(Badge badge) {
+        BadgeResponseDTO dto = new BadgeResponseDTO();
+        dto.setId(badge.getId());
+        dto.setName(badge.getName());
+        dto.setDescription(badge.getDescription());
+        dto.setImage(badge.getImage());
+        return dto;
+    }
+
+    private PlanResponseDTO convertToPlanResponseDTO(Plan plan) {
+        PlanResponseDTO dto = new PlanResponseDTO();
+        dto.setId(plan.getId());
+        dto.setName(plan.getName());
+        dto.setDescription(plan.getDescription());
+        dto.setPrice(plan.getPrice());
+        dto.setDurationInDays(plan.getDurationInDays());
+        return dto;
     }
 }
