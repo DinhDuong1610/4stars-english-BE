@@ -318,4 +318,20 @@ public class UserService implements UserDetailsService {
         return convertToUserResponseDTO(savedUser);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<UserResponseDTO> getLeaderboard(Pageable pageable) {
+        Page<User> userPage = this.userRepository.findAllByOrderByPointDesc(pageable);
+
+        List<UserResponseDTO> userDTOs = userPage.getContent().stream()
+                .map(this::convertToUserResponseDTO)
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                userPage.getNumber() + 1,
+                userPage.getSize(),
+                userPage.getTotalPages(),
+                userPage.getTotalElements());
+
+        return new ResultPaginationDTO<>(meta, userDTOs);
+    }
 }
