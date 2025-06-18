@@ -2,6 +2,7 @@ package com.fourstars.FourStars.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +22,13 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public NotificationService(NotificationRepository notificationRepository, UserRepository userRepository) {
+    public NotificationService(NotificationRepository notificationRepository, UserRepository userRepository,
+            SimpMessagingTemplate messagingTemplate) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     private User getCurrentAuthenticatedUser() {
@@ -62,7 +66,20 @@ public class NotificationService {
         }
 
         Notification notification = new Notification(recipient, actor, type, message, link);
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
+
+        try {
+            NotificationResponseDTO notificationDTO = convertToResponseDTO(savedNotification);
+
+            // Gửi message đến một user cụ thể qua destination "/queue/notifications"
+            messagingTemplate.convertAndSendToUser(
+                    recipient.getEmail(), // Tên của Principal (chính là email của user)
+                    "/queue/notifications", // Destination cá nhân
+                    notificationDTO // Dữ liệu cần gửi
+            );
+        } catch (Exception e) {
+            System.err.println("Error sending notification via WebSocket: " + e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
