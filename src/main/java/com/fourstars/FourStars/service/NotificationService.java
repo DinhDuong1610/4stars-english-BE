@@ -95,4 +95,10 @@ public class NotificationService {
         notification.setRead(true);
         notificationRepository.save(notification);
     }
+
+    @Transactional(readOnly = true)
+    public long getUnreadCountForCurrentUser() {
+        User currentUser = getCurrentAuthenticatedUser();
+        return notificationRepository.countByRecipientAndIsReadFalse(currentUser);
+    }
 }

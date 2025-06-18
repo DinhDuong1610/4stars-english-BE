@@ -1,5 +1,7 @@
 package com.fourstars.FourStars.controller.client;
 
+import java.util.Map;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,5 +41,12 @@ public class NotificationController {
     public ResponseEntity<Void> markAsRead(@PathVariable long id) {
         notificationService.markAsRead(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/unread-count")
+    @ApiMessage("Get the count of unread notifications for the current user")
+    public ResponseEntity<Map<String, Long>> getUnreadCount() {
+        long count = notificationService.getUnreadCountForCurrentUser();
+        return ResponseEntity.ok(Map.of("unreadCount", count));
     }
 }
