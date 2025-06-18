@@ -1,5 +1,6 @@
 package com.fourstars.FourStars.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,4 +30,14 @@ public interface UserVocabularyRepository
     @Modifying
     @Query("DELETE FROM UserVocabulary uv WHERE uv.id.vocabularyId = :vocabularyId")
     void deleteByVocabularyId(@Param("vocabularyId") Long vocabularyId);
+
+    /**
+     * Tìm danh sách những User duy nhất có từ vựng cần ôn tập
+     * (có nextReviewAt nhỏ hơn hoặc bằng thời điểm hiện tại).
+     * 
+     * @param now Thời điểm hiện tại.
+     * @return Danh sách các User.
+     */
+    @Query("SELECT DISTINCT uv.user FROM UserVocabulary uv WHERE uv.nextReviewAt <= :now")
+    List<User> findUsersWithPendingReviews(@Param("now") Instant now);
 }
