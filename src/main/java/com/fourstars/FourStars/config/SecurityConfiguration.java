@@ -4,6 +4,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,6 +24,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
 
 import com.fourstars.FourStars.util.SecurityUtil;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
@@ -49,7 +51,8 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-            CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
+            CustomAuthenticationEntryPoint customAuthenticationEntryPoint, StreakUpdateFilter streakUpdateFilter)
+            throws Exception {
         String[] whiteList = {
                 "/api/v1/auth/login",
                 "/api/v1/auth/register",
@@ -81,6 +84,8 @@ public class SecurityConfiguration {
                 )
                 .formLogin(f -> f.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        http.addFilterAfter(streakUpdateFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }
@@ -122,5 +127,12 @@ public class SecurityConfiguration {
     private SecretKey getSecretKey() {
         byte[] keyBytes = Base64.from(jwtKey).decode();
         return new SecretKeySpec(keyBytes, 0, keyBytes.length, SecurityUtil.JW_ALGORITHM.getName());
+    }
+
+    @Bean
+    public FilterRegistrationBean<StreakUpdateFilter> streakUpdateFilterRegistration(StreakUpdateFilter filter) {
+        FilterRegistrationBean<StreakUpdateFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

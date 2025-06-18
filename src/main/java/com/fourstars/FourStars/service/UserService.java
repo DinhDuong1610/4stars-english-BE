@@ -56,6 +56,7 @@ public class UserService implements UserDetailsService {
         dto.setEmail(user.getEmail());
         dto.setActive(user.isActive());
         dto.setPoint(user.getPoint());
+        dto.setStreakCount(user.getStreakCount());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
         dto.setCreatedBy(user.getCreatedBy());

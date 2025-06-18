@@ -22,14 +22,16 @@ public class ResLoginDTO {
         private String email;
         private String name;
         private RoleInfoDTO role;
+        private int streakCount;
 
-        public UserLogin(long id, String email, String name, Role roleEntity) {
+        public UserLogin(long id, String email, String name, Role roleEntity, int streakCount) {
             this.id = id;
             this.email = email;
             this.name = name;
             if (roleEntity != null) {
                 this.role = new RoleInfoDTO(roleEntity.getId(), roleEntity.getName());
             }
+            this.streakCount = streakCount;
         }
     }
 

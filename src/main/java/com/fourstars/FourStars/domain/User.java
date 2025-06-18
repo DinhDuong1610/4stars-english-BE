@@ -1,6 +1,7 @@
 package com.fourstars.FourStars.domain;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -63,6 +64,12 @@ public class User {
 
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;
+
+    @Column(name = "streak_count")
+    private Integer streakCount = 0;
+
+    @Column(name = "last_activity_date")
+    private LocalDate lastActivityDate;
 
     @Column(name = "created_at")
     @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss a", timezone = "GMT+7")

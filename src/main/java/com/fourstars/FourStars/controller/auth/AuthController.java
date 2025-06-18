@@ -88,7 +88,8 @@ public class AuthController {
                     currentUser.getId(),
                     currentUser.getEmail(),
                     currentUser.getName(),
-                    currentUser.getRole());
+                    currentUser.getRole(),
+                    currentUser.getStreakCount());
             res.setUser(userLogin);
         }
 
@@ -129,7 +130,10 @@ public class AuthController {
                 currentUser.getId(),
                 currentUser.getEmail(),
                 currentUser.getName(),
-                currentUser.getRole());
+                currentUser.getRole(),
+                currentUser.getStreakCount()
+
+        );
 
         return ResponseEntity.ok().body(userLogin);
     }
@@ -164,7 +168,8 @@ public class AuthController {
                 currentUserDB.getId(),
                 currentUserDB.getEmail(),
                 currentUserDB.getName(),
-                currentUserDB.getRole());
+                currentUserDB.getRole(),
+                currentUserDB.getStreakCount());
         res.setUser(userLogin);
 
         String newAccessToken = this.securityUtil.createAccessToken(newAuthentication.getName(), res);

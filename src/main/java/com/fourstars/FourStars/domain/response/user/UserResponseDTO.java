@@ -13,6 +13,7 @@ public class UserResponseDTO {
     private String email;
     private boolean active;
     private int point;
+    private int streakCount;
     private Instant createdAt;
     private Instant updatedAt;
     private String createdBy;
