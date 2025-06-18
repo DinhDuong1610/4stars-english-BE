@@ -20,6 +20,7 @@ import com.fourstars.FourStars.repository.LikeRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.constant.NotificationType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
@@ -30,13 +31,16 @@ public class PostService {
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
     private final CommentRepository commentRepository;
+    private final NotificationService notificationService;
 
     public PostService(PostRepository postRepository, UserRepository userRepository,
-            LikeRepository likeRepository, CommentRepository commentRepository) {
+            LikeRepository likeRepository, CommentRepository commentRepository,
+            NotificationService notificationService) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.likeRepository = likeRepository;
         this.commentRepository = commentRepository;
+        this.notificationService = notificationService;
     }
 
     private PostResponseDTO convertToPostResponseDTO(Post post, User currentUser) {
@@ -204,6 +208,13 @@ public class PostService {
 
         Like newLike = new Like(currentUser, post);
         likeRepository.save(newLike);
+
+        User recipient = post.getUser();
+        User actor = currentUser;
+        String message = actor.getName() + " đã thích bài viết của bạn.";
+        String link = "/api/v1/posts/" + post.getId();
+
+        notificationService.createNotification(recipient, actor, NotificationType.NEW_LIKE_ON_POST, message, link);
     }
 
     @Transactional
