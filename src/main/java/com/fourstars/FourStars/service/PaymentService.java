@@ -8,6 +8,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fourstars.FourStars.util.constant.PaymentStatus;
+import org.springframework.transaction.annotation.Transactional;
+import java.io.UnsupportedEncodingException;
+
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -114,6 +118,89 @@ public class PaymentService {
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
 
         return vnpUrl + "?" + queryUrl;
+    }
+
+    @Transactional
+    public Map<String, String> handleVNPayIPN(Map<String, String> vnp_Params) throws UnsupportedEncodingException {
+        // Lấy hash bí mật từ tham số trả về
+        String vnp_SecureHash = vnp_Params.remove("vnp_SecureHash");
+
+        // Sắp xếp các tham số còn lại và tạo chuỗi dữ liệu để kiểm tra chữ ký
+        List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
+        Collections.sort(fieldNames);
+        StringBuilder hashData = new StringBuilder();
+        Iterator<String> itr = fieldNames.iterator();
+        while (itr.hasNext()) {
+            String fieldName = itr.next();
+            String fieldValue = vnp_Params.get(fieldName);
+            if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                hashData.append(fieldName);
+                hashData.append('=');
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                if (itr.hasNext()) {
+                    hashData.append('&');
+                }
+            }
+        }
+
+        // Tạo chữ ký từ dữ liệu nhận được
+        String mySecureHash = VNPayConfig.hmacSHA512(hashSecret, hashData.toString());
+
+        Map<String, String> response = new HashMap<>();
+
+        // 1. KIỂM TRA CHỮ KÝ
+        if (mySecureHash.equals(vnp_SecureHash)) {
+            // Lấy ID subscription từ mã giao dịch
+            String vnp_TxnRef = vnp_Params.get("vnp_TxnRef");
+            long subscriptionId = Long.parseLong(vnp_TxnRef.split("_")[0]);
+
+            Subscription subscription = subscriptionRepository.findById(subscriptionId).orElse(null);
+
+            // 2. KIỂM TRA ĐƠN HÀNG (SUBSCRIPTION)
+            if (subscription != null) {
+                // 3. KIỂM TRA TRẠNG THÁI ĐÃ UPDATE CHƯA
+                if (subscription.getPaymentStatus() != PaymentStatus.PAID) {
+                    // 4. KIỂM TRA SỐ TIỀN
+                    long amountFromVNPay = Long.parseLong(vnp_Params.get("vnp_Amount")) / 100;
+                    long amountFromDB = subscription.getPlan().getPrice().longValue();
+
+                    if (amountFromVNPay == amountFromDB) {
+                        // 5. KIỂM TRA MÃ PHẢN HỒI CỦA VNPAY
+                        if ("00".equals(vnp_Params.get("vnp_ResponseCode"))) {
+                            // Giao dịch thành công -> Cập nhật trạng thái
+                            subscription.setPaymentStatus(PaymentStatus.PAID);
+                            subscription.setActive(true);
+                            subscription.setTransactionId(vnp_Params.get("vnp_TransactionNo"));
+                            subscriptionRepository.save(subscription);
+
+                            response.put("RspCode", "00");
+                            response.put("Message", "Confirm Success");
+                        } else {
+                            // Giao dịch thất bại
+                            subscription.setPaymentStatus(PaymentStatus.FAILED);
+                            subscriptionRepository.save(subscription);
+
+                            response.put("RspCode", "01"); // Hoặc mã lỗi khác
+                            response.put("Message", "Confirm Failed");
+                        }
+                    } else {
+                        response.put("RspCode", "04");
+                        response.put("Message", "Invalid Amount");
+                    }
+                } else {
+                    response.put("RspCode", "02");
+                    response.put("Message", "Order already confirmed");
+                }
+            } else {
+                response.put("RspCode", "01");
+                response.put("Message", "Order not Found");
+            }
+        } else {
+            response.put("RspCode", "97");
+            response.put("Message", "Invalid Signature");
+        }
+
+        return response;
     }
 
 }
