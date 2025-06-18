@@ -4,6 +4,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,5 +32,12 @@ public class NotificationController {
         ResultPaginationDTO<NotificationResponseDTO> result = notificationService
                 .getNotificationsForCurrentUser(pageable);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{id}/read")
+    @ApiMessage("Mark a specific notification as read")
+    public ResponseEntity<Void> markAsRead(@PathVariable long id) {
+        notificationService.markAsRead(id);
+        return ResponseEntity.ok().build();
     }
 }

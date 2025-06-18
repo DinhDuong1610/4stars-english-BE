@@ -2,6 +2,7 @@ package com.fourstars.FourStars.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,4 +82,17 @@ public class NotificationService {
         return new ResultPaginationDTO<>(meta, dtoPage.getContent());
     }
 
+    @Transactional
+    public void markAsRead(long notificationId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + notificationId));
+
+        if (!notification.getRecipient().equals(currentUser)) {
+            throw new AccessDeniedException("You do not have permission to read this notification.");
+        }
+
+        notification.setRead(true);
+        notificationRepository.save(notification);
+    }
 }
