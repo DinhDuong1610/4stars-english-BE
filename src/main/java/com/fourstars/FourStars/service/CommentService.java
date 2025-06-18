@@ -132,7 +132,7 @@ public class CommentService {
             User actor = savedComment.getUser();
 
             String message = actor.getName() + " đã trả lời bình luận của bạn.";
-            String link = "/posts/" + savedComment.getPost().getId() + "#comment-" + savedComment.getId();
+            String link = "/api/v1/posts/" + savedComment.getPost().getId() + "#comment-" + savedComment.getId();
 
             notificationService.createNotification(recipient, actor, NotificationType.NEW_REPLY, message, link);
         }
