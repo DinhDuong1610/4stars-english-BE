@@ -1,8 +1,6 @@
 package com.fourstars.FourStars.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +21,7 @@ import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.constant.NotificationType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -32,12 +31,14 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public CommentService(CommentRepository commentRepository, PostRepository postRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository, NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
@@ -125,6 +126,17 @@ public class CommentService {
         }
 
         Comment savedComment = commentRepository.save(comment);
+
+        if (savedComment.getParentComment() != null) {
+            User recipient = savedComment.getParentComment().getUser();
+            User actor = savedComment.getUser();
+
+            String message = actor.getName() + " đã trả lời bình luận của bạn.";
+            String link = "/posts/" + savedComment.getPost().getId() + "#comment-" + savedComment.getId();
+
+            notificationService.createNotification(recipient, actor, NotificationType.NEW_REPLY, message, link);
+        }
+
         return convertToCommentResponseDTO(savedComment);
     }
 
