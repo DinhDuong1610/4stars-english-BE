@@ -68,10 +68,7 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
-                                // .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN") // Ví dụ,
-                                // hoặc dùng
-                                // hasRole("ADMIN") nếu
-                                // prefix là "ROLE_"
+                                .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2 // oauth2 ở đây là OAuth2ResourceServerConfigurer
                         .jwt(jwt -> jwt // jwt ở đây là JwtConfigurer

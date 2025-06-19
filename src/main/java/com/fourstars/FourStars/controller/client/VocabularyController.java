@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,16 +52,16 @@ public class VocabularyController {
         return ResponseEntity.ok(result);
     }
 
-    // getVocabulariesForReview
     @GetMapping("/review")
+    @PreAuthorize("isAuthenticated()")
     @ApiMessage("Fetch all vocabularies for review with pagination and filtering")
     public ResponseEntity<List<VocabularyResponseDTO>> getVocabulariesForReview() {
         List<VocabularyResponseDTO> result = vocabularyService.getVocabulariesForReview(1000);
         return ResponseEntity.ok(result);
     }
 
-    // submitVocabularyReview
     @PostMapping("/submit-review")
+    @PreAuthorize("isAuthenticated()")
     @ApiMessage("Submit a vocabulary review")
     public ResponseEntity<UserVocabulary> submitVocabularyReview(
             @Valid @RequestBody SubmitReviewRequestDTO reviewDTO) {
