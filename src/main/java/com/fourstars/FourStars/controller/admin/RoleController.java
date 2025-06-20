@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +25,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/roles")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class RoleController {
 
     private final RoleService roleService;
@@ -33,6 +35,7 @@ public class RoleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new role")
     public ResponseEntity<RoleResponseDTO> createRole(@Valid @RequestBody RoleRequestDTO roleRequestDTO)
             throws DuplicateResourceException {
@@ -41,6 +44,7 @@ public class RoleController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a role by its ID")
     public ResponseEntity<RoleResponseDTO> getRoleById(@PathVariable long id) throws ResourceNotFoundException {
         RoleResponseDTO role = roleService.fetchRoleById(id);
@@ -48,6 +52,7 @@ public class RoleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing role")
     public ResponseEntity<RoleResponseDTO> updateRole(
             @PathVariable long id,
@@ -59,6 +64,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a role")
     public ResponseEntity<Void> deleteRole(@PathVariable long id)
             throws ResourceNotFoundException, DuplicateResourceException {
@@ -67,6 +73,7 @@ public class RoleController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all roles with pagination")
     public ResponseEntity<ResultPaginationDTO<RoleResponseDTO>> getAllRoles(Pageable pageable) {
         ResultPaginationDTO<RoleResponseDTO> result = roleService.fetchAllRoles(pageable);

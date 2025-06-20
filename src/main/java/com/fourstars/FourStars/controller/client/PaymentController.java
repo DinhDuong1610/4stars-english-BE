@@ -30,7 +30,7 @@ public class PaymentController {
      * @return Một JSON chứa 'paymentUrl' để frontend chuyển hướng người dùng.
      */
     @PostMapping("/vnpay/create/{subscriptionId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Create a VNPay payment request URL")
     public ResponseEntity<Map<String, String>> createVNPayPayment(
             @PathVariable long subscriptionId,

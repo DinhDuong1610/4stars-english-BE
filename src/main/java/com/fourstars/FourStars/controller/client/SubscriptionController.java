@@ -35,7 +35,7 @@ public class SubscriptionController {
 
     @PostMapping
     @ApiMessage("Create a new subscription (enroll in a course package)")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<SubscriptionResponseDTO> createSubscription(
             @Valid @RequestBody SubscriptionRequestDTO subscriptionRequestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
@@ -46,7 +46,7 @@ public class SubscriptionController {
 
     @GetMapping("/{id}")
     @ApiMessage("Fetch a subscription by its ID")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<SubscriptionResponseDTO> getSubscriptionById(@PathVariable long id)
             throws ResourceNotFoundException {
         SubscriptionResponseDTO subscription = subscriptionService.fetchSubscriptionById(id);
@@ -55,7 +55,7 @@ public class SubscriptionController {
 
     @GetMapping
     @ApiMessage("Fetch all subscriptions for the current user")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getCurrentUserSubscriptions(Pageable pageable)
             throws ResourceNotFoundException {
         ResultPaginationDTO<SubscriptionResponseDTO> result = subscriptionService.fetchUserSubscriptions(pageable);

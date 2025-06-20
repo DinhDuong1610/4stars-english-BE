@@ -19,6 +19,7 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @RestController
 @RequestMapping("/api/v1/admin/subscriptions")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
@@ -27,10 +28,8 @@ public class SubscriptionController {
         this.subscriptionService = subscriptionService;
     }
 
-    // Endpoint để admin xác nhận thanh toán (thường là webhook từ cổng thanh toán)
     @PostMapping("/confirm-payment/{subscriptionId}")
-    // @PreAuthorize("hasAuthority('ROLE_ADMIN') or
-    // hasAuthority('SYSTEM_PAYMENT_GATEWAY')") // Bảo vệ endpoint này
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<SubscriptionResponseDTO> confirmPayment(
             @PathVariable long subscriptionId,
             @RequestParam String transactionId,
@@ -41,8 +40,8 @@ public class SubscriptionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a subscription by its ID")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SubscriptionResponseDTO> getSubscriptionById(@PathVariable long id)
             throws ResourceNotFoundException {
         SubscriptionResponseDTO subscription = subscriptionService.fetchSubscriptionById(id);
@@ -50,8 +49,8 @@ public class SubscriptionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("ADMIN: Fetch all subscriptions with pagination")
-    // @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getAllSubscriptionsAsAdmin(Pageable pageable) {
         ResultPaginationDTO<SubscriptionResponseDTO> result = subscriptionService
                 .fetchAllSubscriptionsAsAdmin(pageable);

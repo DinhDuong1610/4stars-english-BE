@@ -29,6 +29,7 @@ public class NotificationController {
     }
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Get notifications for the current user")
     public ResponseEntity<ResultPaginationDTO<NotificationResponseDTO>> getNotifications(Pageable pageable) {
         ResultPaginationDTO<NotificationResponseDTO> result = notificationService
@@ -37,6 +38,7 @@ public class NotificationController {
     }
 
     @PostMapping("/{id}/read")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Mark a specific notification as read")
     public ResponseEntity<Void> markAsRead(@PathVariable long id) {
         notificationService.markAsRead(id);
@@ -44,6 +46,7 @@ public class NotificationController {
     }
 
     @GetMapping("/unread-count")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Get the count of unread notifications for the current user")
     public ResponseEntity<Map<String, Long>> getUnreadCount() {
         long count = notificationService.getUnreadCountForCurrentUser();
