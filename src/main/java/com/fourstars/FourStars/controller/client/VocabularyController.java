@@ -53,7 +53,7 @@ public class VocabularyController {
     }
 
     @GetMapping("/review")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Fetch all vocabularies for review with pagination and filtering")
     public ResponseEntity<List<VocabularyResponseDTO>> getVocabulariesForReview() {
         List<VocabularyResponseDTO> result = vocabularyService.getVocabulariesForReview(1000);
@@ -61,7 +61,7 @@ public class VocabularyController {
     }
 
     @PostMapping("/submit-review")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Submit a vocabulary review")
     public ResponseEntity<UserVocabulary> submitVocabularyReview(
             @Valid @RequestBody SubmitReviewRequestDTO reviewDTO) {

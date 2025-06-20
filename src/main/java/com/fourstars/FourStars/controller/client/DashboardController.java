@@ -20,7 +20,7 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Get the user's learning progress dashboard")
     public ResponseEntity<DashboardResponseDTO> getUserDashboard() {
         DashboardResponseDTO dashboardData = userService.getUserDashboard();

@@ -28,21 +28,21 @@ public class QuizController {
 
     @PostMapping("/{id}/start")
     @ApiMessage("Start a quiz attempt")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<QuizForUserAttemptDTO> startQuiz(@PathVariable("id") long quizId) {
         return ResponseEntity.ok(quizService.startQuiz(quizId));
     }
 
     @PostMapping("/submit")
     @ApiMessage("Submit answers for a quiz attempt")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<QuizAttemptResponseDTO> submitQuiz(@Valid @RequestBody SubmitQuizRequestDTO submitDTO) {
         return ResponseEntity.ok(quizService.submitQuiz(submitDTO));
     }
 
     @GetMapping("/attempts/{attemptId}")
     @ApiMessage("Get the result of a quiz attempt")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<QuizAttemptResponseDTO> getQuizResult(@PathVariable long attemptId) {
         return ResponseEntity.ok(quizService.getQuizResult(attemptId));
     }

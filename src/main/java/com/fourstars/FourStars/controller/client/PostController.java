@@ -36,7 +36,7 @@ public class PostController {
 
     @PostMapping
     @ApiMessage("Create a new post")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<PostResponseDTO> createPost(@Valid @RequestBody PostRequestDTO requestDTO)
             throws ResourceNotFoundException {
         PostResponseDTO newPost = postService.createPost(requestDTO);
@@ -45,7 +45,7 @@ public class PostController {
 
     @PutMapping("/{id}")
     @ApiMessage("Update an existing post")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<PostResponseDTO> updatePost(
             @PathVariable long id,
             @Valid @RequestBody PostRequestDTO requestDTO)
@@ -56,7 +56,7 @@ public class PostController {
 
     @DeleteMapping("/{id}")
     @ApiMessage("Delete a post")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<Void> deletePost(@PathVariable long id)
             throws ResourceNotFoundException, BadRequestException {
         postService.deletePost(id);
@@ -79,7 +79,7 @@ public class PostController {
 
     @PostMapping("/{id}/like")
     @ApiMessage("Like a post")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<Void> likePost(@PathVariable("id") long postId)
             throws ResourceNotFoundException, DuplicateResourceException {
         postService.handleLikePost(postId);
@@ -88,7 +88,7 @@ public class PostController {
 
     @DeleteMapping("/{id}/like")
     @ApiMessage("Unlike a post")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<Void> unlikePost(@PathVariable("id") long postId) throws ResourceNotFoundException {
         postService.handleUnlikePost(postId);
         return ResponseEntity.noContent().build();
