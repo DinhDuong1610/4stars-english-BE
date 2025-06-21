@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -33,6 +36,7 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
+@CacheConfig(cacheNames = "categories")
 public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
@@ -81,6 +85,7 @@ public class CategoryService {
     }
 
     @Transactional
+    @CacheEvict(allEntries = true)
     public CategoryResponseDTO createCategory(CategoryRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
         if (categoryRepository.existsByNameAndTypeAndParentCategoryId(requestDTO.getName(), requestDTO.getType(),
@@ -106,6 +111,7 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(key = "#id")
     public CategoryResponseDTO fetchCategoryById(long id, boolean deep) throws ResourceNotFoundException {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
@@ -113,6 +119,7 @@ public class CategoryService {
     }
 
     @Transactional
+    @CacheEvict(key = "#id", allEntries = true)
     public CategoryResponseDTO updateCategory(long id, CategoryRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
         Category categoryDB = categoryRepository.findById(id)
@@ -240,6 +247,7 @@ public class CategoryService {
     }
 
     @Transactional
+    @CacheEvict(key = "#id", allEntries = true)
     public void deleteCategory(long id) throws ResourceNotFoundException, ResourceInUseException {
         Category categoryToDelete = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));

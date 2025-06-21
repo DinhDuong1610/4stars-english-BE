@@ -1,7 +1,6 @@
 package com.fourstars.FourStars.config;
 
-import com.fourstars.FourStars.domain.Permission;
-import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.response.permission.UserPermissionDTO;
 import com.fourstars.FourStars.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.annotation.Lazy;
@@ -13,7 +12,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.io.Serializable;
-import java.util.List;
+import java.util.Set;
 
 @Component
 public class CustomPermissionEvaluator implements PermissionEvaluator {
@@ -27,34 +26,39 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
     @Override
     public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
-        // Lấy HttpServletRequest từ context của Spring
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
-                .getRequest();
-
-        String requestPath = request.getRequestURI();
-        String requestMethod = request.getMethod();
-
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
             return false;
         }
 
-        User user = userService.getUserEntityByEmail(authentication.getName());
-        if (user == null || user.getRole() == null) {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
+                .getRequest();
+        String requestPath = request.getRequestURI();
+        String requestMethod = request.getMethod();
+
+        UserPermissionDTO permissionData = userService.getPermissionsByEmail(authentication.getName());
+
+        if (permissionData == null) {
             return false;
         }
 
-        if ("ADMIN".equalsIgnoreCase(user.getRole().getName())) {
+        if ("ADMIN".equalsIgnoreCase(permissionData.getRoleName())) {
             return true;
         }
 
-        List<Permission> userPermissions = user.getRole().getPermissions();
+        String requiredPermission = requestMethod.toUpperCase() + ":" + requestPath;
+
+        Set<String> userPermissions = permissionData.getPermissions();
         if (userPermissions == null) {
             return false;
         }
 
-        for (Permission p : userPermissions) {
-            if (p.getMethod().equalsIgnoreCase(requestMethod) && pathMatcher.match(p.getApiPath(), requestPath)) {
+        for (String p : userPermissions) {
+            String[] parts = p.split(":", 2);
+            String dbMethod = parts[0];
+            String dbPath = parts[1];
+
+            if (dbMethod.equalsIgnoreCase(requestMethod) && pathMatcher.match(dbPath, requestPath)) {
                 return true;
             }
         }
@@ -65,6 +69,6 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
     @Override
     public boolean hasPermission(Authentication authentication, Serializable targetId, String targetType,
             Object permission) {
-        return false; // Không dùng
+        return false;
     }
 }
