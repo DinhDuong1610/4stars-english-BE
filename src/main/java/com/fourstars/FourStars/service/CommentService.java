@@ -1,16 +1,16 @@
 package com.fourstars.FourStars.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.Comment;
 import com.fourstars.FourStars.domain.CommentAttachment;
 import com.fourstars.FourStars.domain.Post;
@@ -19,10 +19,12 @@ import com.fourstars.FourStars.domain.request.comment.CommentRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.comment.CommentResponseDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
+import com.fourstars.FourStars.messaging.dto.NewReplyMessage;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.constant.NotificationType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -32,12 +34,14 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final RabbitTemplate rabbitTemplate;
 
     public CommentService(CommentRepository commentRepository, PostRepository postRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository, RabbitTemplate rabbitTemplate) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
@@ -125,6 +129,32 @@ public class CommentService {
         }
 
         Comment savedComment = commentRepository.save(comment);
+
+        // if (savedComment.getParentComment() != null) {
+        // User recipient = savedComment.getParentComment().getUser();
+        // User actor = savedComment.getUser();
+
+        // String message = actor.getName() + " đã trả lời bình luận của bạn.";
+        // String link = "/api/v1/posts/" + savedComment.getPost().getId() + "#comment-"
+        // + savedComment.getId();
+
+        // notificationService.createNotification(recipient, actor,
+        // NotificationType.NEW_REPLY, message, link);
+        // }
+
+        if (savedComment.getParentComment() != null) {
+            NewReplyMessage message = new NewReplyMessage(
+                    savedComment.getParentComment().getUser().getId(),
+                    savedComment.getUser().getId(),
+                    savedComment.getPost().getId(),
+                    savedComment.getId());
+
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.NOTIFICATION_EXCHANGE,
+                    "notification.new.reply",
+                    message);
+        }
+
         return convertToCommentResponseDTO(savedComment);
     }
 

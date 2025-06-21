@@ -24,7 +24,7 @@ public class NotebookController {
 
     @PostMapping("/add/{vocabularyId}")
     @ApiMessage("Add a vocabulary to the user's personal notebook")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<UserVocabularyResponseDTO> addVocabularyToNotebook(@PathVariable long vocabularyId) {
         UserVocabularyResponseDTO result = vocabularyService.addVocabularyToNotebook(vocabularyId);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);

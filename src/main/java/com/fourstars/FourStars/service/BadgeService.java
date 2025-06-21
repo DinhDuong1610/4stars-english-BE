@@ -3,6 +3,9 @@ package com.fourstars.FourStars.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,7 @@ import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
+@CacheConfig(cacheNames = "badges")
 public class BadgeService {
     private final BadgeRepository badgeRepository;
     private final UserRepository userRepository;
@@ -45,6 +49,7 @@ public class BadgeService {
     }
 
     @Transactional
+    @CacheEvict(allEntries = true)
     public BadgeResponseDTO createBadge(BadgeRequestDTO badgeRequestDTO) throws DuplicateResourceException {
         if (badgeRepository.existsByName(badgeRequestDTO.getName())) {
             throw new DuplicateResourceException("Badge name '" + badgeRequestDTO.getName() + "' already exists.");
@@ -61,6 +66,7 @@ public class BadgeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(key = "#id")
     public BadgeResponseDTO fetchBadgeById(long id) throws ResourceNotFoundException {
         Badge badge = badgeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Badge not found with id: " + id));
@@ -68,6 +74,7 @@ public class BadgeService {
     }
 
     @Transactional
+    @CacheEvict(key = "#id")
     public BadgeResponseDTO updateBadge(long id, BadgeRequestDTO badgeRequestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
         Badge badgeDB = badgeRepository.findById(id)
@@ -89,6 +96,7 @@ public class BadgeService {
     }
 
     @Transactional
+    @CacheEvict(key = "#id")
     public void deleteBadge(long id) throws ResourceNotFoundException, ResourceInUseException {
         Badge badgeToDelete = badgeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Badge not found with id: " + id));

@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -81,6 +83,7 @@ public class RoleService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "roles", key = "#id")
     public RoleResponseDTO fetchRoleById(long id) throws ResourceNotFoundException {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
@@ -94,6 +97,7 @@ public class RoleService {
     }
 
     @Transactional
+    @CacheEvict(value = "roles", key = "#id")
     public RoleResponseDTO updateRole(long id, RoleRequestDTO roleRequestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
         Role roleDB = roleRepository.findById(id)
@@ -122,6 +126,7 @@ public class RoleService {
     }
 
     @Transactional
+    @CacheEvict(value = "roles", key = "#id")
     public void deleteRole(long id) throws ResourceNotFoundException, DuplicateResourceException {
         Role roleToDelete = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));

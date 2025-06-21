@@ -27,7 +27,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/vocabularies")
-// @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class VocabularyController {
     private final VocabularyService vocabularyService;
 
@@ -36,6 +36,7 @@ public class VocabularyController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new vocabulary")
     public ResponseEntity<VocabularyResponseDTO> createVocabulary(@Valid @RequestBody VocabularyRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
@@ -44,6 +45,7 @@ public class VocabularyController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing vocabulary")
     public ResponseEntity<VocabularyResponseDTO> updateVocabulary(
             @PathVariable long id,
@@ -54,6 +56,7 @@ public class VocabularyController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a vocabulary")
     public ResponseEntity<Void> deleteVocabulary(@PathVariable long id) throws ResourceNotFoundException {
         vocabularyService.deleteVocabulary(id);
@@ -61,6 +64,7 @@ public class VocabularyController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a vocabulary by its ID")
     public ResponseEntity<VocabularyResponseDTO> getVocabularyById(@PathVariable long id)
             throws ResourceNotFoundException {
@@ -69,6 +73,7 @@ public class VocabularyController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all vocabularies with pagination and filtering")
     public ResponseEntity<ResultPaginationDTO<VocabularyResponseDTO>> getAllVocabularies(
             Pageable pageable,

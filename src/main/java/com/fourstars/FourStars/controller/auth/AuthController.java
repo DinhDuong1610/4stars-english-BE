@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -113,6 +114,7 @@ public class AuthController {
     }
 
     @GetMapping("/auth/account")
+    @PreAuthorize("isAuthenticated()")
     @ApiMessage("Fetch current authenticated user's account")
     public ResponseEntity<ResLoginDTO.UserLogin> getAccount() {
         Optional<String> currentUserLoginOpt = SecurityUtil.getCurrentUserLogin();
@@ -192,6 +194,7 @@ public class AuthController {
     }
 
     @PostMapping("/auth/logout")
+    @PreAuthorize("isAuthenticated()")
     @ApiMessage("Logout User")
     public ResponseEntity<Void> logout() {
         Optional<String> currentUserLoginOpt = SecurityUtil.getCurrentUserLogin();

@@ -27,7 +27,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/articles")
-// @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class ArticleController {
 
     private final ArticleService articleService;
@@ -37,6 +37,7 @@ public class ArticleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new article")
     public ResponseEntity<ArticleResponseDTO> createArticle(@Valid @RequestBody ArticleRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
@@ -45,6 +46,7 @@ public class ArticleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing article")
     public ResponseEntity<ArticleResponseDTO> updateArticle(
             @PathVariable long id,
@@ -55,6 +57,7 @@ public class ArticleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete an article")
     public ResponseEntity<Void> deleteArticle(@PathVariable long id) throws ResourceNotFoundException {
         articleService.deleteArticle(id);
@@ -62,6 +65,7 @@ public class ArticleController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch an article by its ID")
     public ResponseEntity<ArticleResponseDTO> getArticleById(@PathVariable long id) throws ResourceNotFoundException {
         ArticleResponseDTO article = articleService.fetchArticleById(id);
@@ -69,6 +73,7 @@ public class ArticleController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all articles with pagination and filtering")
     public ResponseEntity<ResultPaginationDTO<ArticleResponseDTO>> getAllArticles(
             Pageable pageable,

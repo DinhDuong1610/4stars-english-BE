@@ -27,7 +27,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/videos")
-// @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class VideoController {
 
     private final VideoService videoService;
@@ -37,6 +37,7 @@ public class VideoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new video lesson")
     public ResponseEntity<VideoResponseDTO> createVideo(@Valid @RequestBody VideoRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
@@ -45,6 +46,7 @@ public class VideoController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing video lesson")
     public ResponseEntity<VideoResponseDTO> updateVideo(
             @PathVariable long id,
@@ -55,6 +57,7 @@ public class VideoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a video lesson")
     public ResponseEntity<Void> deleteVideo(@PathVariable long id) throws ResourceNotFoundException {
         videoService.deleteVideo(id);
@@ -62,6 +65,7 @@ public class VideoController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a video lesson by its ID")
     public ResponseEntity<VideoResponseDTO> getVideoById(@PathVariable long id) throws ResourceNotFoundException {
         VideoResponseDTO video = videoService.fetchVideoById(id);
@@ -69,6 +73,7 @@ public class VideoController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all video lessons with pagination and filtering")
     public ResponseEntity<ResultPaginationDTO<VideoResponseDTO>> getAllVideos(
             Pageable pageable,

@@ -34,8 +34,8 @@ public class CommentController {
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Create a new comment or a reply")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CommentResponseDTO> createComment(@Valid @RequestBody CommentRequestDTO requestDTO)
             throws ResourceNotFoundException, BadRequestException {
         CommentResponseDTO newComment = commentService.createComment(requestDTO);
@@ -43,8 +43,8 @@ public class CommentController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Update an existing comment")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CommentResponseDTO> updateComment(
             @PathVariable long id,
             @RequestBody @Valid CommentRequestDTO requestDTO)
@@ -54,8 +54,8 @@ public class CommentController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Delete a comment")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteComment(@PathVariable long id)
             throws ResourceNotFoundException, BadRequestException {
         commentService.deleteComment(id);
@@ -63,7 +63,7 @@ public class CommentController {
     }
 
     @GetMapping("/post/{postId}")
-    @ApiMessage("Fetch comments for a specific post")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<ResultPaginationDTO<CommentResponseDTO>> getCommentsByPost(
             @PathVariable long postId,
             Pageable pageable) {

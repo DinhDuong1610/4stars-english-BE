@@ -8,6 +8,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -32,7 +34,7 @@ import com.nimbusds.jose.util.Base64;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(securedEnabled = true)
+@EnableMethodSecurity
 public class SecurityConfiguration {
 
     @Value("${fourstars.jwt.base64-secret}")
@@ -47,6 +49,14 @@ public class SecurityConfiguration {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
             throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler(
+            CustomPermissionEvaluator customPermissionEvaluator) {
+        DefaultMethodSecurityExpressionHandler handler = new DefaultMethodSecurityExpressionHandler();
+        handler.setPermissionEvaluator(customPermissionEvaluator);
+        return handler;
     }
 
     @Bean
@@ -68,10 +78,7 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
-                                // .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN") // Ví dụ,
-                                // hoặc dùng
-                                // hasRole("ADMIN") nếu
-                                // prefix là "ROLE_"
+                                .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2 // oauth2 ở đây là OAuth2ResourceServerConfigurer
                         .jwt(jwt -> jwt // jwt ở đây là JwtConfigurer

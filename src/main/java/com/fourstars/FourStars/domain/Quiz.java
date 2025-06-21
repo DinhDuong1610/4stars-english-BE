@@ -11,7 +11,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "quizzes")
+@Table(name = "quizzes", indexes = {
+        @Index(name = "idx_quiz_categoryid", columnList = "category_id")
+})
 @Getter
 @Setter
 public class Quiz {

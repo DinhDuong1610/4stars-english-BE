@@ -31,8 +31,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/categories")
-// @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Bảo vệ toàn bộ controller cho
-// admin
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class CategoryController {
 
     private final CategoryService categoryService;
@@ -42,6 +41,7 @@ public class CategoryController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new category")
     public ResponseEntity<CategoryResponseDTO> createCategory(@Valid @RequestBody CategoryRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
@@ -50,6 +50,7 @@ public class CategoryController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a category by its ID")
     public ResponseEntity<CategoryResponseDTO> getCategoryById(
             @PathVariable long id,
@@ -60,6 +61,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing category")
     public ResponseEntity<CategoryResponseDTO> updateCategory(
             @PathVariable long id,
@@ -70,6 +72,7 @@ public class CategoryController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all categories with pagination")
     public ResponseEntity<ResultPaginationDTO<CategoryResponseDTO>> getAllCategories(
             Pageable pageable,
@@ -79,6 +82,7 @@ public class CategoryController {
     }
 
     @GetMapping("/tree")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all categories as a paginated tree structure")
     public ResponseEntity<ResultPaginationDTO<CategoryResponseDTO>> getAllCategoriesAsTree(
             @RequestParam(name = "type", required = false) CategoryType type,
@@ -89,6 +93,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a category")
     public ResponseEntity<Void> deleteCategory(@PathVariable long id)
             throws ResourceNotFoundException, ResourceInUseException {

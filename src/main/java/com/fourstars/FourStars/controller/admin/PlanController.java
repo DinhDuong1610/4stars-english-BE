@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +27,7 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import jakarta.validation.Valid;
 
 @RestController
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 @RequestMapping("/api/v1/admin/plans")
 public class PlanController {
     private final PlanService planService;
@@ -35,6 +37,7 @@ public class PlanController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new plan (course package)")
     public ResponseEntity<PlanResponseDTO> create(@Valid @RequestBody PlanRequestDTO planRequestDTO)
             throws DuplicateResourceException {
@@ -44,6 +47,7 @@ public class PlanController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Get plan by id")
     public ResponseEntity<PlanResponseDTO> findById(@PathVariable("id") long id) {
         PlanResponseDTO plan = this.planService.findById(id);
@@ -52,6 +56,7 @@ public class PlanController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing plan")
     public ResponseEntity<PlanResponseDTO> update(@PathVariable("id") long id,
             @RequestBody PlanRequestDTO planRequestDTO) throws ResourceNotFoundException, DuplicateResourceException {
@@ -60,6 +65,7 @@ public class PlanController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a plan")
     public ResponseEntity<Void> deletePlan(@PathVariable long id)
             throws ResourceNotFoundException, ResourceInUseException {
@@ -68,6 +74,7 @@ public class PlanController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all plans with pagination")
     public ResponseEntity<ResultPaginationDTO<PlanResponseDTO>> getAllPlans(Pageable pageable) {
         ResultPaginationDTO<PlanResponseDTO> result = planService.fetchAll(pageable);

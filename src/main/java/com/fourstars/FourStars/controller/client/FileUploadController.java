@@ -26,7 +26,7 @@ public class FileUploadController {
 
     @PostMapping("/upload")
     @ApiMessage("Upload a single file to server")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<FileUploadResponseDTO> uploadFile(@RequestParam("file") MultipartFile file)
             throws IOException {
 

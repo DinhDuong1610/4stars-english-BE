@@ -55,16 +55,18 @@ public class SecurityUtil {
         Instant now = Instant.now();
         Instant validity = now.plus(this.accessTokenExpiration, ChronoUnit.SECONDS);
 
-        List<String> listAuthoriy = new ArrayList<>();
-        listAuthoriy.add("ROLE_USER_CREATE");
-        listAuthoriy.add("ROLE_USER_UPDATE");
+        List<String> authorities = new ArrayList<>();
+        ResLoginDTO.RoleInfoDTO role = dto.getUser().getRole();
+        if (role != null && role.getName() != null && !role.getName().isEmpty()) {
+            authorities.add(role.getName());
+        }
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuedAt(now)
                 .expiresAt(validity)
                 .subject(email)
                 .claim("user", userToken)
-                .claim("permission", listAuthoriy)
+                .claim("permission", authorities)
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(JW_ALGORITHM).build();

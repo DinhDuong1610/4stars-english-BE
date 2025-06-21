@@ -27,7 +27,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/grammars")
-// @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class GrammarController {
 
     private final GrammarService grammarService;
@@ -37,6 +37,7 @@ public class GrammarController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new grammar lesson")
     public ResponseEntity<GrammarResponseDTO> createGrammar(@Valid @RequestBody GrammarRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
@@ -45,6 +46,7 @@ public class GrammarController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing grammar lesson")
     public ResponseEntity<GrammarResponseDTO> updateGrammar(
             @PathVariable long id,
@@ -55,6 +57,7 @@ public class GrammarController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a grammar lesson")
     public ResponseEntity<Void> deleteGrammar(@PathVariable long id) throws ResourceNotFoundException {
         grammarService.deleteGrammar(id);
@@ -62,6 +65,7 @@ public class GrammarController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a grammar lesson by its ID")
     public ResponseEntity<GrammarResponseDTO> getGrammarById(@PathVariable long id) throws ResourceNotFoundException {
         GrammarResponseDTO grammar = grammarService.fetchGrammarById(id);
@@ -69,6 +73,7 @@ public class GrammarController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all grammar lessons with pagination and filtering")
     public ResponseEntity<ResultPaginationDTO<GrammarResponseDTO>> getAllGrammars(
             Pageable pageable,

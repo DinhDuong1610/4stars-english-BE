@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +25,8 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/v1/admin/badges") // Endpoint chung cho badges
+@RequestMapping("/api/v1/admin/badges")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class BadgeController {
 
     private final BadgeService badgeService;
@@ -34,6 +36,7 @@ public class BadgeController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new badge")
     public ResponseEntity<BadgeResponseDTO> createBadge(@Valid @RequestBody BadgeRequestDTO badgeRequestDTO)
             throws DuplicateResourceException {
@@ -42,6 +45,7 @@ public class BadgeController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a badge by its ID")
     public ResponseEntity<BadgeResponseDTO> getBadgeById(@PathVariable long id) throws ResourceNotFoundException {
         BadgeResponseDTO badge = badgeService.fetchBadgeById(id);
@@ -49,6 +53,7 @@ public class BadgeController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing badge")
     public ResponseEntity<BadgeResponseDTO> updateBadge(
             @PathVariable long id,
@@ -59,6 +64,7 @@ public class BadgeController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a badge")
     public ResponseEntity<Void> deleteBadge(@PathVariable long id)
             throws ResourceNotFoundException, ResourceInUseException {
@@ -67,6 +73,7 @@ public class BadgeController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all badges with pagination")
     public ResponseEntity<ResultPaginationDTO<BadgeResponseDTO>> getAllBadges(Pageable pageable) {
         ResultPaginationDTO<BadgeResponseDTO> result = badgeService.fetchAllBadges(pageable);

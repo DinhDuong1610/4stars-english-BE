@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import jakarta.validation.Valid;
 
 @RestController
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 @RequestMapping("/api/v1/admin/users")
 public class UserController {
 
@@ -35,6 +37,7 @@ public class UserController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new user")
     public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody CreateUserRequestDTO createUserRequestDTO)
             throws DuplicateResourceException, ResourceNotFoundException {
@@ -43,6 +46,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a user by their ID")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable long id) throws ResourceNotFoundException {
         UserResponseDTO user = userService.fetchUserById(id);
@@ -50,6 +54,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing user")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable long id,
@@ -61,6 +66,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a user")
     public ResponseEntity<Void> deleteUser(@PathVariable long id) throws ResourceNotFoundException {
         userService.deleteUser(id);
@@ -68,6 +74,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all users with pagination")
     public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(Pageable pageable) {
         ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable);

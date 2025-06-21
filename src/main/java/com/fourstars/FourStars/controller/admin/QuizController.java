@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/quizzes")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class QuizController {
 
     private final QuizService quizService;
@@ -31,6 +33,7 @@ public class QuizController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new quiz")
     public ResponseEntity<QuizDTO> createQuiz(@Valid @RequestBody QuizDTO quizDTO) {
         QuizDTO createdQuiz = quizService.createQuiz(quizDTO);
@@ -38,6 +41,7 @@ public class QuizController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing quiz")
     public ResponseEntity<QuizDTO> updateQuiz(@PathVariable("id") long id, @Valid @RequestBody QuizDTO quizDTO) {
         QuizDTO updatedQuiz = quizService.updateQuiz(id, quizDTO);
@@ -45,6 +49,7 @@ public class QuizController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a quiz")
     public ResponseEntity<Void> deleteQuiz(@PathVariable("id") long id) {
         quizService.deleteQuiz(id);
@@ -52,12 +57,14 @@ public class QuizController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Get a quiz by id for admin")
     public ResponseEntity<QuizDTO> getQuizById(@PathVariable("id") long id) {
         return ResponseEntity.ok(quizService.getQuizForAdmin(id));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Get all quizzes for admin with filtering")
     public ResponseEntity<ResultPaginationDTO<QuizDTO>> getAllQuizzes(
             Pageable pageable,
