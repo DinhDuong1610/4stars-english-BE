@@ -16,7 +16,7 @@ public class RabbitMQConfig {
 
     public static final String NOTIFICATION_QUEUE = "q.notification";
 
-    public static final String NOTIFICATION_ROUTING_KEY = "notification.new.#";
+    public static final String NOTIFICATION_ROUTING_KEY = "notification.#";
 
     @Bean
     public TopicExchange notificationExchange() {
