@@ -3,11 +3,13 @@ package com.fourstars.FourStars.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.Like;
 import com.fourstars.FourStars.domain.Post;
 import com.fourstars.FourStars.domain.PostAttachment;
@@ -15,6 +17,7 @@ import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.request.post.PostRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
+import com.fourstars.FourStars.messaging.dto.NewLikeMessage;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.LikeRepository;
 import com.fourstars.FourStars.repository.PostRepository;
@@ -31,16 +34,16 @@ public class PostService {
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
     private final CommentRepository commentRepository;
-    private final NotificationService notificationService;
+    private final RabbitTemplate rabbitTemplate;
 
     public PostService(PostRepository postRepository, UserRepository userRepository,
             LikeRepository likeRepository, CommentRepository commentRepository,
-            NotificationService notificationService) {
+            RabbitTemplate rabbitTemplate) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.likeRepository = likeRepository;
         this.commentRepository = commentRepository;
-        this.notificationService = notificationService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     private PostResponseDTO convertToPostResponseDTO(Post post, User currentUser) {
@@ -153,13 +156,6 @@ public class PostService {
         Post postToDelete = postRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
 
-        // Chỉ chủ sở hữu hoặc admin mới có quyền xóa
-        // if (postToDelete.getUser().getId() != currentUser.getId() &&
-        // !SecurityUtil.isAdmin(authentication)) {
-        // throw new BadRequestException("You do not have permission to delete this
-        // post.");
-        // }
-        // Hiện tại chỉ check chủ sở hữu
         if (postToDelete.getUser().getId() != currentUser.getId()) {
             throw new BadRequestException("You do not have permission to delete this post.");
         }
@@ -209,12 +205,15 @@ public class PostService {
         Like newLike = new Like(currentUser, post);
         likeRepository.save(newLike);
 
-        User recipient = post.getUser();
-        User actor = currentUser;
-        String message = actor.getName() + " đã thích bài viết của bạn.";
-        String link = "/api/v1/posts/" + post.getId();
+        NewLikeMessage message = new NewLikeMessage(
+                post.getUser().getId(),
+                currentUser.getId(),
+                post.getId());
 
-        notificationService.createNotification(recipient, actor, NotificationType.NEW_LIKE_ON_POST, message, link);
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.NOTIFICATION_EXCHANGE,
+                "notification.new.like",
+                message);
     }
 
     @Transactional

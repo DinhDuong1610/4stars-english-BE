@@ -1,11 +1,14 @@
 package com.fourstars.FourStars.service;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.messaging.dto.ReviewReminderMessage;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
 import com.fourstars.FourStars.util.constant.NotificationType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,18 +22,18 @@ public class ScheduledTaskService {
     private static final Logger logger = LoggerFactory.getLogger(ScheduledTaskService.class);
 
     private final UserVocabularyRepository userVocabularyRepository;
-    private final NotificationService notificationService;
+    private final RabbitTemplate rabbitTemplate;
 
     public ScheduledTaskService(UserVocabularyRepository userVocabularyRepository,
-            NotificationService notificationService) {
+            RabbitTemplate rabbitTemplate) {
         this.userVocabularyRepository = userVocabularyRepository;
-        this.notificationService = notificationService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
      * Tác vụ này sẽ tự động chạy vào 8 giờ sáng mỗi ngày (theo giờ Việt Nam).
      */
-    @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Ho_Chi_Minh")
+    @Scheduled(cron = "${myapp.scheduling.reminders.cron}", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public void sendReviewReminders() {
         logger.info("Running scheduled task: Sending review reminders...");
@@ -46,14 +49,19 @@ public class ScheduledTaskService {
                     .count();
 
             if (reviewCount > 0) {
-                String message = "Bạn có " + reviewCount + " từ vựng cần ôn tập hôm nay. Vào học ngay thôi!";
-                String link = "/review"; // Link đến trang ôn tập trên frontend
+                ReviewReminderMessage message = new ReviewReminderMessage(
+                        user.getId(),
+                        user.getName(),
+                        reviewCount);
 
-                // 3. Gửi thông báo (actor là null vì đây là thông báo hệ thống)
-                notificationService.createNotification(user, null, NotificationType.REVIEW_REMINDER, message, link);
-                logger.info("Sent review reminder to user ID: {}", user.getId());
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.NOTIFICATION_EXCHANGE,
+                        "notification.reminder.review",
+                        message);
+                logger.info("Sent review reminder message for user ID: {}", user.getId());
             }
         }
         logger.info("Finished sending {} reminders.", usersToNotify.size());
     }
+
 }

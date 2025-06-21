@@ -63,7 +63,7 @@ public class NotificationService {
     @Async
     @Transactional
     public void createNotification(User recipient, User actor, NotificationType type, String message, String link) {
-        if (recipient.equals(actor)) {
+        if (recipient != null && actor != null && recipient.getId() == actor.getId()) {
             return;
         }
 
@@ -73,12 +73,12 @@ public class NotificationService {
         try {
             NotificationResponseDTO notificationDTO = convertToResponseDTO(savedNotification);
 
-            // Gửi message đến một user cụ thể qua destination "/queue/notifications"
-            messagingTemplate.convertAndSendToUser(
-                    recipient.getEmail(), // Tên của Principal (chính là email của user)
-                    "/queue/notifications", // Destination cá nhân
-                    notificationDTO // Dữ liệu cần gửi
-            );
+            if (recipient != null) {
+                messagingTemplate.convertAndSendToUser(
+                        recipient.getEmail(),
+                        "/queue/notifications",
+                        notificationDTO);
+            }
         } catch (Exception e) {
             System.err.println("Error sending notification via WebSocket: " + e.getMessage());
         }
