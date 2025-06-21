@@ -3,6 +3,7 @@ package com.fourstars.FourStars.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,7 @@ public class NotificationService {
         return dto;
     }
 
+    @Async
     @Transactional
     public void createNotification(User recipient, User actor, NotificationType type, String message, String link) {
         if (recipient.equals(actor)) {
