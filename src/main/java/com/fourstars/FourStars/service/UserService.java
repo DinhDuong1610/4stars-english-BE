@@ -6,8 +6,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.GrantedAuthority;
@@ -32,6 +35,7 @@ import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.auth.ResCreateUserDTO;
 import com.fourstars.FourStars.domain.response.badge.BadgeResponseDTO;
 import com.fourstars.FourStars.domain.response.dashboard.DashboardResponseDTO;
+import com.fourstars.FourStars.domain.response.permission.UserPermissionDTO;
 import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
 import com.fourstars.FourStars.domain.response.user.UserResponseDTO;
 import com.fourstars.FourStars.repository.BadgeRepository;
@@ -45,6 +49,10 @@ import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+
 @Service
 public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
@@ -56,6 +64,7 @@ public class UserService implements UserDetailsService {
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final SecurityUtil securityUtil;
+    private final CacheManager cacheManager;
 
     public UserService(UserRepository userRepository,
             RoleRepository roleRepository,
@@ -65,7 +74,7 @@ public class UserService implements UserDetailsService {
             UserQuizAttemptRepository userQuizAttemptRepository,
             PlanRepository planRepository,
             SubscriptionRepository subscriptionRepository,
-            SecurityUtil securityUtil) {
+            SecurityUtil securityUtil, CacheManager cacheManager) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.badgeRepository = badgeRepository;
@@ -75,6 +84,7 @@ public class UserService implements UserDetailsService {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.securityUtil = securityUtil;
+        this.cacheManager = cacheManager;
     }
 
     private UserResponseDTO convertToUserResponseDTO(User user) {
@@ -159,6 +169,8 @@ public class UserService implements UserDetailsService {
         User userDB = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
+        String oldEmail = userDB.getEmail();
+
         if (requestDTO.getEmail() != null && !userDB.getEmail().equalsIgnoreCase(requestDTO.getEmail())) {
             if (userRepository.existsByEmailAndIdNot(requestDTO.getEmail(), id)) {
                 throw new DuplicateResourceException(
@@ -193,6 +205,14 @@ public class UserService implements UserDetailsService {
 
         User updatedUser = userRepository.save(userDB);
 
+        Cache cache = cacheManager.getCache("user_permissions");
+        if (cache != null) {
+            cache.evict(oldEmail);
+            if (requestDTO.getEmail() != null && !oldEmail.equals(requestDTO.getEmail())) {
+                cache.evict(requestDTO.getEmail());
+            }
+        }
+
         return convertToUserResponseDTO(updatedUser);
     }
 
@@ -220,7 +240,41 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "user_permissions", key = "#email")
+    public UserPermissionDTO getPermissionsByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+
+        if (user.getRole() == null) {
+            return new UserPermissionDTO("USER", Set.of());
+        }
+
+        Set<String> userPermissions = user.getRole().getPermissions().stream()
+                .map(p -> p.getMethod() + ":" + p.getApiPath())
+                .collect(Collectors.toSet());
+
+        return new UserPermissionDTO(user.getRole().getName(), userPermissions);
+    }
+
     public User getUserEntityByEmail(String email) throws ResourceNotFoundException {
+        Cache cache = cacheManager.getCache("user_permissions");
+        if (cache != null) {
+            User cachedUser = cache.get(email, User.class);
+            if (cachedUser != null) {
+                return cachedUser;
+            }
+        }
+
+        User userFromDb = this.findUserByEmailInDatabase(email);
+
+        if (cache != null) {
+            cache.put(email, userFromDb);
+        }
+        return userFromDb;
+    }
+
+    @Transactional(readOnly = true)
+    protected User findUserByEmailInDatabase(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
     }

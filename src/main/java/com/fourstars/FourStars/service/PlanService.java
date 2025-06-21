@@ -3,9 +3,11 @@ package com.fourstars.FourStars.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
+@CacheConfig(cacheNames = "plans")
 public class PlanService {
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -49,6 +52,7 @@ public class PlanService {
     }
 
     @Transactional
+    @CacheEvict(allEntries = true)
     public PlanResponseDTO create(PlanRequestDTO planRequestDTO) throws DuplicateResourceException {
         if (this.planRepository.existsByName(planRequestDTO.getName())) {
             throw new DuplicateResourceException("Plan name '" + planRequestDTO.getName() + "' already exists.");
@@ -67,6 +71,7 @@ public class PlanService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(key = "#id")
     public PlanResponseDTO findById(long id) {
         Plan plan = this.planRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
@@ -81,6 +86,7 @@ public class PlanService {
     }
 
     @Transactional
+    @CacheEvict(key = "#id")
     public PlanResponseDTO update(long id, PlanRequestDTO planRequestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
 
@@ -104,6 +110,7 @@ public class PlanService {
     }
 
     @Transactional
+    @CacheEvict(key = "#id")
     public void delete(long id) throws ResourceNotFoundException, ResourceInUseException {
         Plan planToDelete = this.getPlanEntityById(id);
 
