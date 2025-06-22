@@ -80,7 +80,7 @@ public class NotificationConsumer {
 
             String notifMessage = "Bạn có " + message.getReviewCount()
                     + " từ vựng cần ôn tập hôm nay. Vào học ngay thôi!";
-            String link = "/review";
+            String link = "/api/v1/review";
 
             notificationService.createNotification(recipient, null, NotificationType.REVIEW_REMINDER, notifMessage,
                     link);
