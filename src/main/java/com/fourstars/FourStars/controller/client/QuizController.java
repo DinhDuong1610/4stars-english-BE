@@ -1,5 +1,8 @@
 package com.fourstars.FourStars.controller.client;
 
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,8 +39,11 @@ public class QuizController {
     @PostMapping("/submit")
     @ApiMessage("Submit answers for a quiz attempt")
     @PreAuthorize("hasPermission(null, null)")
-    public ResponseEntity<QuizAttemptResponseDTO> submitQuiz(@Valid @RequestBody SubmitQuizRequestDTO submitDTO) {
-        return ResponseEntity.ok(quizService.submitQuiz(submitDTO));
+    public ResponseEntity<Map<String, String>> submitQuiz(@Valid @RequestBody SubmitQuizRequestDTO submitDTO) {
+        quizService.acceptQuizSubmission(submitDTO);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(Map.of("message",
+                        "Your submission has been received and is being processed. You will be notified when the results are ready."));
     }
 
     @GetMapping("/attempts/{attemptId}")

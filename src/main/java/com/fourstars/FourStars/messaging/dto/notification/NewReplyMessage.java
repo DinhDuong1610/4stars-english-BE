@@ -1,4 +1,4 @@
-package com.fourstars.FourStars.messaging.dto;
+package com.fourstars.FourStars.messaging.dto.notification;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,9 +10,11 @@ import java.io.Serializable;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReviewReminderMessage implements Serializable {
+public class NewReplyMessage implements Serializable {
     private static final long serialVersionUID = 1L;
     private Long recipientId;
-    private String recipientName;
-    private long reviewCount;
+    private Long actorId;
+    private Long postId;
+    private Long commentId;
+
 }

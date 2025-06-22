@@ -17,7 +17,7 @@ import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.request.post.PostRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
-import com.fourstars.FourStars.messaging.dto.NewLikeMessage;
+import com.fourstars.FourStars.messaging.dto.notification.NewLikeMessage;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.LikeRepository;
 import com.fourstars.FourStars.repository.PostRepository;

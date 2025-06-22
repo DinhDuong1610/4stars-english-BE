@@ -1,4 +1,4 @@
-package com.fourstars.FourStars.messaging.dto;
+package com.fourstars.FourStars.messaging.dto.notification;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

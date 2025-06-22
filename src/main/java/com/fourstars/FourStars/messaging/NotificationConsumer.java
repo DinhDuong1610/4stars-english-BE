@@ -2,9 +2,10 @@ package com.fourstars.FourStars.messaging;
 
 import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.User;
-import com.fourstars.FourStars.messaging.dto.NewLikeMessage;
-import com.fourstars.FourStars.messaging.dto.NewReplyMessage;
-import com.fourstars.FourStars.messaging.dto.ReviewReminderMessage;
+import com.fourstars.FourStars.messaging.dto.notification.NewLikeMessage;
+import com.fourstars.FourStars.messaging.dto.notification.NewReplyMessage;
+import com.fourstars.FourStars.messaging.dto.notification.ReviewReminderMessage;
+import com.fourstars.FourStars.messaging.dto.quiz.QuizResultMessage;
 import com.fourstars.FourStars.service.NotificationService;
 import com.fourstars.FourStars.service.UserService;
 import com.fourstars.FourStars.util.constant.NotificationType;
@@ -86,6 +87,23 @@ public class NotificationConsumer {
 
         } catch (Exception e) {
             logger.error("Error processing review reminder message", e);
+        }
+    }
+
+    @RabbitHandler
+    @Transactional
+    public void handleQuizResult(QuizResultMessage message) {
+        logger.info("Received quiz result message for attempt: {}", message.getAttemptId());
+        try {
+            User recipient = userService.getUserEntityById(message.getRecipientId());
+
+            String notifMessage = "Bài quiz '" + message.getQuizTitle() + "' của bạn đã có kết quả. Bạn đạt được "
+                    + message.getScore() + " điểm.";
+            String link = "/quiz/results/" + message.getAttemptId();
+
+            notificationService.createNotification(recipient, null, NotificationType.NEW_CONTENT, notifMessage, link);
+        } catch (Exception e) {
+            logger.error("Error processing quiz result notification", e);
         }
     }
 }

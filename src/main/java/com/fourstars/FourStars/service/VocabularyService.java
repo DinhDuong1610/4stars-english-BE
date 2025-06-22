@@ -273,7 +273,17 @@ public class VocabularyService {
     @Transactional
     public UserVocabularyResponseDTO addVocabularyToNotebook(Long vocabularyId) {
         User user = getCurrentAuthenticatedUser();
+        return this.createOrGetNotebookEntry(user, vocabularyId);
+    }
 
+    @Transactional
+    public UserVocabularyResponseDTO addVocabularyToNotebook(Long userId, Long vocabularyId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        return this.createOrGetNotebookEntry(user, vocabularyId);
+    }
+
+    private UserVocabularyResponseDTO createOrGetNotebookEntry(User user, Long vocabularyId) {
         UserVocabularyId userVocabularyId = new UserVocabularyId(user.getId(), vocabularyId);
 
         Optional<UserVocabulary> existingEntry = userVocabularyRepository.findById(userVocabularyId);
@@ -285,7 +295,6 @@ public class VocabularyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + vocabularyId));
 
         UserVocabulary newUserVocabulary = new UserVocabulary(user, vocab);
-
         UserVocabulary savedEntry = userVocabularyRepository.save(newUserVocabulary);
 
         return convertToUserVocabularyResponseDTO(savedEntry);

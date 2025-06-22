@@ -19,7 +19,7 @@ import com.fourstars.FourStars.domain.request.comment.CommentRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.comment.CommentResponseDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
-import com.fourstars.FourStars.messaging.dto.NewReplyMessage;
+import com.fourstars.FourStars.messaging.dto.notification.NewReplyMessage;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
