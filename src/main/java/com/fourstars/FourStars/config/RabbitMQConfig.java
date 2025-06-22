@@ -13,10 +13,12 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
 
     public static final String NOTIFICATION_EXCHANGE = "notification_exchange";
-
     public static final String NOTIFICATION_QUEUE = "q.notification";
-
     public static final String NOTIFICATION_ROUTING_KEY = "notification.#";
+
+    public static final String QUIZ_SCORING_EXCHANGE = "quiz_scoring_exchange";
+    public static final String QUIZ_SCORING_QUEUE = "q.quiz_scoring";
+    public static final String QUIZ_SCORING_ROUTING_KEY = "quiz.submission";
 
     @Bean
     public TopicExchange notificationExchange() {
@@ -34,6 +36,24 @@ public class RabbitMQConfig {
                 .bind(notificationQueue())
                 .to(notificationExchange())
                 .with(NOTIFICATION_ROUTING_KEY);
+    }
+
+    @Bean
+    public TopicExchange quizScoringExchange() {
+        return new TopicExchange(QUIZ_SCORING_EXCHANGE);
+    }
+
+    @Bean
+    public Queue quizScoringQueue() {
+        return new Queue(QUIZ_SCORING_QUEUE, true);
+    }
+
+    @Bean
+    public Binding quizScoringBinding() {
+        return BindingBuilder
+                .bind(quizScoringQueue())
+                .to(quizScoringExchange())
+                .with(QUIZ_SCORING_ROUTING_KEY);
     }
 
     @Bean

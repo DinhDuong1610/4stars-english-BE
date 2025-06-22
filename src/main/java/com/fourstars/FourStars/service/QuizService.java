@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.Question;
 import com.fourstars.FourStars.domain.QuestionChoice;
@@ -33,6 +35,8 @@ import com.fourstars.FourStars.domain.response.quiz.QuestionForUserDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuizAttemptResponseDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuizForUserAttemptDTO;
 import com.fourstars.FourStars.domain.response.quiz.UserAnswerResponseDTO;
+import com.fourstars.FourStars.messaging.dto.quiz.QuizResultMessage;
+import com.fourstars.FourStars.messaging.dto.quiz.QuizSubmissionMessage;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.QuestionRepository;
 import com.fourstars.FourStars.repository.QuizRepository;
@@ -56,11 +60,12 @@ public class QuizService {
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
     private final VocabularyService vocabularyService;
+    private final RabbitTemplate rabbitTemplate;
 
     public QuizService(QuizRepository quizRepository, QuestionRepository questionRepository,
             UserQuizAttemptRepository userQuizAttemptRepository, UserRepository userRepository,
             CategoryRepository categoryRepository, VocabularyRepository vocabularyRepository,
-            VocabularyService vocabularyService) {
+            VocabularyService vocabularyService, RabbitTemplate rabbitTemplate) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
         this.userQuizAttemptRepository = userQuizAttemptRepository;
@@ -68,6 +73,7 @@ public class QuizService {
         this.categoryRepository = categoryRepository;
         this.vocabularyRepository = vocabularyRepository;
         this.vocabularyService = vocabularyService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     private User getCurrentAuthenticatedUser() {
@@ -190,9 +196,24 @@ public class QuizService {
         return new QuizForUserAttemptDTO(savedAttempt.getId(), quiz.getTitle(), questionForUserDTOs);
     }
 
-    @Transactional
-    public QuizAttemptResponseDTO submitQuiz(SubmitQuizRequestDTO submitDTO) {
+    public void acceptQuizSubmission(SubmitQuizRequestDTO requestDTO) {
         User currentUser = getCurrentAuthenticatedUser();
+
+        QuizSubmissionMessage message = new QuizSubmissionMessage(
+                currentUser.getId(),
+                requestDTO.getUserQuizAttemptId(),
+                requestDTO.getAnswers());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.QUIZ_SCORING_EXCHANGE,
+                RabbitMQConfig.QUIZ_SCORING_ROUTING_KEY,
+                message);
+    }
+
+    @Transactional
+    public QuizAttemptResponseDTO processAndScoreQuiz(QuizSubmissionMessage submitDTO) {
+        User currentUser = userRepository.findById(submitDTO.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + submitDTO.getUserId()));
         UserQuizAttempt attempt = userQuizAttemptRepository
                 .findByIdAndUserId(submitDTO.getUserQuizAttemptId(), currentUser.getId())
                 .orElseThrow(
@@ -262,11 +283,22 @@ public class QuizService {
 
         relatedVocabularyIds.forEach(vocabId -> {
             try {
-                vocabularyService.addVocabularyToNotebook(vocabId);
+                vocabularyService.addVocabularyToNotebook(currentUser.getId(), vocabId);
             } catch (Exception e) {
                 System.err.println("Could not add vocabulary " + vocabId + " to notebook. Error: " + e.getMessage());
             }
         });
+
+        QuizResultMessage resultMessage = new QuizResultMessage(
+                savedAttempt.getUser().getId(),
+                savedAttempt.getId(),
+                savedAttempt.getQuiz().getTitle(),
+                savedAttempt.getScore());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.NOTIFICATION_EXCHANGE,
+                "notification.quiz.result",
+                resultMessage);
 
         return convertToQuizAttemptResponseDTO(savedAttempt);
     }

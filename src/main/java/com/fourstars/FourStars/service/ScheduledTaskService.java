@@ -2,7 +2,7 @@ package com.fourstars.FourStars.service;
 
 import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.User;
-import com.fourstars.FourStars.messaging.dto.ReviewReminderMessage;
+import com.fourstars.FourStars.messaging.dto.notification.ReviewReminderMessage;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
 import com.fourstars.FourStars.util.constant.NotificationType;
 
