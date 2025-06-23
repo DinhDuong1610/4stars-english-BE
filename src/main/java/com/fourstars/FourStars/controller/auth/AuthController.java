@@ -34,11 +34,17 @@ import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Authentication API", description = "APIs for user login, registration, and token management")
 public class AuthController {
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final AuthenticationManager authenticationManager;
@@ -61,6 +67,11 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Operation(summary = "User Login", description = "Authenticates a user with email and password, returns JWT tokens in response and HttpOnly cookie for refresh token.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid username or password")
+    })
     @PostMapping("/auth/login")
     @ApiMessage("Authenticate user and get tokens")
     public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody ReqLoginDTO loginDTO) {
@@ -113,6 +124,11 @@ public class AuthController {
                 .body(res);
     }
 
+    @Operation(summary = "Get Current User Account", description = "Fetches the profile information of the currently authenticated user based on their token.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved account info"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Token is missing or invalid")
+    })
     @GetMapping("/auth/account")
     @PreAuthorize("isAuthenticated()")
     @ApiMessage("Fetch current authenticated user's account")
@@ -140,6 +156,11 @@ public class AuthController {
         return ResponseEntity.ok().body(userLogin);
     }
 
+    @Operation(summary = "Refresh Access Token", description = "Generates a new access token using a valid refresh token from an HttpOnly cookie.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+            @ApiResponse(responseCode = "400", description = "Refresh token is missing or invalid")
+    })
     @PostMapping("/auth/refresh")
     @ApiMessage("Refresh access token using refresh token from cookie")
     public ResponseEntity<ResLoginDTO> getRefreshToken(
@@ -193,6 +214,10 @@ public class AuthController {
                 .body(res);
     }
 
+    @Operation(summary = "User Logout", description = "Logs out the user by clearing their refresh token and cookie.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logout successful")
+    })
     @PostMapping("/auth/logout")
     @PreAuthorize("isAuthenticated()")
     @ApiMessage("Logout User")
@@ -217,6 +242,12 @@ public class AuthController {
                 .build();
     }
 
+    @Operation(summary = "User Registration", description = "Registers a new user account.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "User registered successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "409", description = "Email already exists")
+    })
     @PostMapping("/auth/register")
     @ApiMessage("Register a new user")
     public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO registerDTO)
