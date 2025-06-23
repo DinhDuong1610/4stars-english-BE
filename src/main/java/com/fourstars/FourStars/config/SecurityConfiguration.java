@@ -67,9 +67,9 @@ public class SecurityConfiguration {
                 "/api/v1/auth/login",
                 "/api/v1/auth/register",
                 "/api/v1/auth/refresh",
-                "/uploads/**"
-                // Thêm các endpoint public khác nếu có (ví dụ: Swagger UI, health check)
-                // "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+                "/uploads/**",
+                "/ws/**",
+                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
         };
 
         http
