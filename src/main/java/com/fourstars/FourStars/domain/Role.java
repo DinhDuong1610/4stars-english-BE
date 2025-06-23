@@ -1,6 +1,7 @@
 package com.fourstars.FourStars.domain;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -69,7 +70,7 @@ public class Role {
     @ManyToMany(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "roles" })
     @JoinTable(name = "permission_role", joinColumns = @JoinColumn(name = "role_id"), inverseJoinColumns = @JoinColumn(name = "permission_id"))
-    private List<Permission> permissions;
+    private List<Permission> permissions = new ArrayList<>();
 
     @PrePersist
     public void handleBeforeCreate() {

@@ -17,7 +17,7 @@ import com.fourstars.FourStars.domain.key.UserVocabularyId;
 
 @Repository
 public interface UserVocabularyRepository
-        extends JpaRepository<UserVocabulary, Long>, JpaSpecificationExecutor<UserVocabulary> {
+        extends JpaRepository<UserVocabulary, UserVocabularyId>, JpaSpecificationExecutor<UserVocabulary> {
 
     UserVocabulary findByUserIdAndVocabularyId(Long userId, Long vocabularyId);
 
