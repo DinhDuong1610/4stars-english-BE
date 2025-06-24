@@ -23,11 +23,17 @@ import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
 @RequestMapping("/api/v1/admin/users")
+@Tag(name = "Admin - User Management API", description = "APIs for Administrators to manage users")
 public class UserController {
 
     private final UserService userService;
@@ -36,6 +42,13 @@ public class UserController {
         this.userService = userService;
     }
 
+    @Operation(summary = "Create a new user", description = "Allows an admin to create a new user account with a specific role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "User created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid user data provided"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "409", description = "Email already exists")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new user")
@@ -45,6 +58,12 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
+    @Operation(summary = "Get a user by ID", description = "Retrieves the details of a specific user by their ID.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved user"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a user by their ID")
@@ -53,6 +72,13 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
+    @Operation(summary = "Update an existing user", description = "Allows an admin to update a user's details, role, or status.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data or ID mismatch"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing user")
@@ -65,6 +91,12 @@ public class UserController {
         return ResponseEntity.ok(updatedUser);
     }
 
+    @Operation(summary = "Delete a user", description = "Permanently deletes a user account. This action cannot be undone.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "User deleted successfully"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a user")
@@ -73,6 +105,11 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get all users with pagination", description = "Retrieves a paginated list of all user accounts.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved user list"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
+    })
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all users with pagination")
