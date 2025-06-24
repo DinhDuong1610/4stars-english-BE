@@ -23,11 +23,16 @@ import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/articles")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Article Management API", description = "APIs for managing English reading articles")
 public class ArticleController {
 
     private final ArticleService articleService;
@@ -36,6 +41,13 @@ public class ArticleController {
         this.articleService = articleService;
     }
 
+    @Operation(summary = "Create a new article")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Article created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data (e.g., category is not of type ARTICLE)"),
+            @ApiResponse(responseCode = "404", description = "Category not found"),
+            @ApiResponse(responseCode = "409", description = "Article with the same title already exists in this category")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new article")
@@ -45,6 +57,12 @@ public class ArticleController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newArticle);
     }
 
+    @Operation(summary = "Update an existing article")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Article updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data"),
+            @ApiResponse(responseCode = "404", description = "Article or Category not found")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing article")
@@ -56,6 +74,11 @@ public class ArticleController {
         return ResponseEntity.ok(updatedArticle);
     }
 
+    @Operation(summary = "Delete an article")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Article deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Article not found")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete an article")
@@ -64,6 +87,11 @@ public class ArticleController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Fetch an article by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved article"),
+            @ApiResponse(responseCode = "404", description = "Article not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch an article by its ID")
@@ -72,6 +100,10 @@ public class ArticleController {
         return ResponseEntity.ok(article);
     }
 
+    @Operation(summary = "Fetch all articles with pagination and filtering")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved article list")
+    })
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all articles with pagination and filtering")
