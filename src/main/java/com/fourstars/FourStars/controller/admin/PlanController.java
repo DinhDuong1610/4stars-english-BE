@@ -24,11 +24,16 @@ import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
 @RequestMapping("/api/v1/admin/plans")
+@Tag(name = "Admin - Plan Management API", description = "APIs for managing subscription plans")
 public class PlanController {
     private final PlanService planService;
 
@@ -36,6 +41,11 @@ public class PlanController {
         this.planService = planService;
     }
 
+    @Operation(summary = "Create a new subscription plan")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Plan created successfully"),
+            @ApiResponse(responseCode = "409", description = "Plan name already exists")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new plan (course package)")
@@ -46,6 +56,11 @@ public class PlanController {
         return ResponseEntity.status(HttpStatus.CREATED).body(plan);
     }
 
+    @Operation(summary = "Get a plan by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved plan"),
+            @ApiResponse(responseCode = "404", description = "Plan not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Get plan by id")
@@ -55,6 +70,12 @@ public class PlanController {
         return ResponseEntity.ok(plan);
     }
 
+    @Operation(summary = "Update an existing plan")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Plan updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Plan not found"),
+            @ApiResponse(responseCode = "409", description = "Plan name already exists for another plan")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing plan")
@@ -64,6 +85,12 @@ public class PlanController {
         return ResponseEntity.ok(plan);
     }
 
+    @Operation(summary = "Delete a plan", description = "Deletes a plan. Fails if the plan has active subscriptions.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Plan deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Plan not found"),
+            @ApiResponse(responseCode = "409", description = "Cannot delete plan, it is in use by subscriptions")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a plan")
@@ -73,6 +100,7 @@ public class PlanController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get all plans with pagination")
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all plans with pagination")

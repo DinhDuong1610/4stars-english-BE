@@ -18,10 +18,15 @@ import com.fourstars.FourStars.domain.response.quiz.QuizForUserAttemptDTO;
 import com.fourstars.FourStars.service.QuizService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController("clientQuizController")
 @RequestMapping("/api/v1/quizzes")
+@Tag(name = "Client - Quiz Management API", description = "APIs for creating, managing, and taking quizzes")
 public class QuizController {
     private final QuizService quizService;
 
@@ -29,6 +34,12 @@ public class QuizController {
         this.quizService = quizService;
     }
 
+    @Operation(summary = "Start a quiz attempt", description = "Creates a new attempt for a quiz and returns the questions without their answers.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Quiz attempt started successfully"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated"),
+            @ApiResponse(responseCode = "404", description = "Quiz not found")
+    })
     @PostMapping("/{id}/start")
     @ApiMessage("Start a quiz attempt")
     @PreAuthorize("hasPermission(null, null)")
@@ -36,6 +47,12 @@ public class QuizController {
         return ResponseEntity.ok(quizService.startQuiz(quizId));
     }
 
+    @Operation(summary = "Submit quiz answers", description = "Submits the user's answers for an attempt. This is processed asynchronously.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Submission received and is being processed"),
+            @ApiResponse(responseCode = "400", description = "Invalid submission data"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated")
+    })
     @PostMapping("/submit")
     @ApiMessage("Submit answers for a quiz attempt")
     @PreAuthorize("hasPermission(null, null)")
@@ -46,6 +63,13 @@ public class QuizController {
                         "Your submission has been received and is being processed. You will be notified when the results are ready."));
     }
 
+    @Operation(summary = "Get quiz attempt results", description = "Retrieves the detailed results of a completed quiz attempt.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved results"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Trying to access another user's attempt"),
+            @ApiResponse(responseCode = "404", description = "Quiz attempt not found")
+    })
     @GetMapping("/attempts/{attemptId}")
     @ApiMessage("Get the result of a quiz attempt")
     @PreAuthorize("hasPermission(null, null)")

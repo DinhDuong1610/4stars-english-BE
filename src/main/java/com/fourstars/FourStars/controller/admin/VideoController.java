@@ -23,11 +23,16 @@ import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/videos")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Video Management API", description = "APIs for managing video lessons")
 public class VideoController {
 
     private final VideoService videoService;
@@ -36,6 +41,12 @@ public class VideoController {
         this.videoService = videoService;
     }
 
+    @Operation(summary = "Create a new video lesson")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Video created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data (e.g., category is not of type VIDEO)"),
+            @ApiResponse(responseCode = "404", description = "Category not found")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new video lesson")
@@ -45,6 +56,12 @@ public class VideoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newVideo);
     }
 
+    @Operation(summary = "Update an existing video lesson")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Video updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data"),
+            @ApiResponse(responseCode = "404", description = "Video or Category not found")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing video lesson")
@@ -56,6 +73,11 @@ public class VideoController {
         return ResponseEntity.ok(updatedVideo);
     }
 
+    @Operation(summary = "Delete a video lesson")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Video deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Video not found")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a video lesson")
@@ -64,6 +86,11 @@ public class VideoController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get a video lesson by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved video"),
+            @ApiResponse(responseCode = "404", description = "Video not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a video lesson by its ID")
@@ -72,6 +99,10 @@ public class VideoController {
         return ResponseEntity.ok(video);
     }
 
+    @Operation(summary = "Get all video lessons with pagination and filtering")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved video list")
+    })
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all video lessons with pagination and filtering")

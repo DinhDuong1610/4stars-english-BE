@@ -23,11 +23,16 @@ import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/vocabularies")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Vocabulary Management API", description = "APIs for managing vocabulary words and their details")
 public class VocabularyController {
     private final VocabularyService vocabularyService;
 
@@ -35,6 +40,13 @@ public class VocabularyController {
         this.vocabularyService = vocabularyService;
     }
 
+    @Operation(summary = "Create a new vocabulary word")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Vocabulary created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data (e.g., category is not of type VOCABULARY)"),
+            @ApiResponse(responseCode = "404", description = "Category not found"),
+            @ApiResponse(responseCode = "409", description = "This word already exists in this category")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new vocabulary")
@@ -44,6 +56,11 @@ public class VocabularyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newVocab);
     }
 
+    @Operation(summary = "Update an existing vocabulary word")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Vocabulary updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Vocabulary or Category not found")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing vocabulary")
@@ -55,6 +72,11 @@ public class VocabularyController {
         return ResponseEntity.ok(updatedVocab);
     }
 
+    @Operation(summary = "Delete a vocabulary word", description = "Deletes a word and all associated user learning progress.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Vocabulary deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Vocabulary not found")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a vocabulary")
@@ -63,6 +85,11 @@ public class VocabularyController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get a vocabulary word by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved vocabulary"),
+            @ApiResponse(responseCode = "404", description = "Vocabulary not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a vocabulary by its ID")
@@ -72,6 +99,10 @@ public class VocabularyController {
         return ResponseEntity.ok(vocab);
     }
 
+    @Operation(summary = "Get all vocabulary with pagination and filtering")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved vocabulary list")
+    })
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all vocabularies with pagination and filtering")

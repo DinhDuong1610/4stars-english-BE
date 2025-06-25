@@ -12,8 +12,14 @@ import com.fourstars.FourStars.domain.response.vocabulary.UserVocabularyResponse
 import com.fourstars.FourStars.service.VocabularyService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/v1/notebook")
+@Tag(name = "Client - Vocabulary Management API", description = "APIs for managing vocabulary words and their details")
 public class NotebookController {
 
     private final VocabularyService vocabularyService;
@@ -22,6 +28,12 @@ public class NotebookController {
         this.vocabularyService = vocabularyService;
     }
 
+    @Operation(summary = "Add a word to my notebook", description = "Adds a specific vocabulary word to the authenticated user's personal learning list. This creates the initial record for SM-2 spaced repetition tracking.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Word successfully added to the notebook"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated"),
+            @ApiResponse(responseCode = "404", description = "Vocabulary word with the specified ID not found")
+    })
     @PostMapping("/add/{vocabularyId}")
     @ApiMessage("Add a vocabulary to the user's personal notebook")
     @PreAuthorize("hasPermission(null, null)")

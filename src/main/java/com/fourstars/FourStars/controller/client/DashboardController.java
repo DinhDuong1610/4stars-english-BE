@@ -10,8 +10,14 @@ import com.fourstars.FourStars.domain.response.dashboard.DashboardResponseDTO;
 import com.fourstars.FourStars.service.UserService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/v1/users/me")
+@Tag(name = "User Engagement API", description = "APIs for user statistics, progress, and leaderboards")
 public class DashboardController {
     private final UserService userService;
 
@@ -19,6 +25,11 @@ public class DashboardController {
         this.userService = userService;
     }
 
+    @Operation(summary = "Get my progress dashboard", description = "Retrieves a summary of the authenticated user's learning progress, including vocabulary stats, quiz stats, streak, and subscription status.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved dashboard data"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated")
+    })
     @GetMapping("/dashboard")
     @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Get the user's learning progress dashboard")

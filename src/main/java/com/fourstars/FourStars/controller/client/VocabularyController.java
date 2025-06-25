@@ -22,10 +22,15 @@ import com.fourstars.FourStars.service.VocabularyService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController("clientVocabularyController")
 @RequestMapping("/api/v1/vocabularies")
+@Tag(name = "Client - Vocabulary Management API", description = "APIs for managing vocabulary words and their details")
 public class VocabularyController {
     private final VocabularyService vocabularyService;
 
@@ -33,6 +38,11 @@ public class VocabularyController {
         this.vocabularyService = vocabularyService;
     }
 
+    @Operation(summary = "Get a vocabulary word by ID", description = "Public endpoint to retrieve the details of a single word.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved vocabulary"),
+            @ApiResponse(responseCode = "404", description = "Vocabulary not found")
+    })
     @GetMapping("/{id}")
     @ApiMessage("Fetch a vocabulary by its ID")
     public ResponseEntity<VocabularyResponseDTO> getVocabularyById(@PathVariable long id)
@@ -41,6 +51,7 @@ public class VocabularyController {
         return ResponseEntity.ok(vocab);
     }
 
+    @Operation(summary = "Search and get all vocabulary", description = "Public endpoint to search for words with pagination and filtering.")
     @GetMapping
     @ApiMessage("Fetch all vocabularies with pagination and filtering")
     public ResponseEntity<ResultPaginationDTO<VocabularyResponseDTO>> getAllVocabularies(
@@ -52,6 +63,11 @@ public class VocabularyController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Get words for review", description = "Fetches a list of vocabulary words that are due for review for the authenticated user, based on the SM-2 algorithm.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved review list"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @GetMapping("/review")
     @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Fetch all vocabularies for review with pagination and filtering")
@@ -60,6 +76,12 @@ public class VocabularyController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Submit a vocabulary review", description = "Submits the result of a vocabulary review. The 'quality' score (0-5) is used by the SM-2 algorithm to calculate the next review date.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Review submitted successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data (e.g., quality score out of range)"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @PostMapping("/submit-review")
     @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Submit a vocabulary review")

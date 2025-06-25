@@ -22,11 +22,16 @@ import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/badges")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Badge Management API", description = "APIs for managing user achievement badges")
 public class BadgeController {
 
     private final BadgeService badgeService;
@@ -35,6 +40,11 @@ public class BadgeController {
         this.badgeService = badgeService;
     }
 
+    @Operation(summary = "Create a new badge")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Badge created successfully"),
+            @ApiResponse(responseCode = "409", description = "Badge name already exists")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new badge")
@@ -44,6 +54,11 @@ public class BadgeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdBadge);
     }
 
+    @Operation(summary = "Get a badge by ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved badge"),
+            @ApiResponse(responseCode = "404", description = "Badge not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a badge by its ID")
@@ -52,6 +67,12 @@ public class BadgeController {
         return ResponseEntity.ok(badge);
     }
 
+    @Operation(summary = "Update an existing badge")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Badge updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Badge not found"),
+            @ApiResponse(responseCode = "409", description = "Badge name already exists for another badge")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing badge")
@@ -63,6 +84,12 @@ public class BadgeController {
         return ResponseEntity.ok(updatedBadge);
     }
 
+    @Operation(summary = "Delete a badge")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Badge deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Badge not found"),
+            @ApiResponse(responseCode = "409", description = "Cannot delete badge, it is in use by users")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a badge")
@@ -72,6 +99,7 @@ public class BadgeController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get all badges with pagination")
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all badges with pagination")

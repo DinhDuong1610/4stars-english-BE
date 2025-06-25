@@ -19,11 +19,16 @@ import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.service.QuizService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/quizzes")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Quiz Management API", description = "APIs for creating, managing, and taking quizzes")
 public class QuizController {
 
     private final QuizService quizService;
@@ -32,6 +37,12 @@ public class QuizController {
         this.quizService = quizService;
     }
 
+    @Operation(summary = "Create a new quiz", description = "Creates a new quiz with a full set of questions and choices.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Quiz created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid data provided"),
+            @ApiResponse(responseCode = "404", description = "Associated category not found")
+    })
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new quiz")
@@ -40,6 +51,11 @@ public class QuizController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdQuiz);
     }
 
+    @Operation(summary = "Update an existing quiz", description = "Updates a quiz. Note: This completely replaces the old set of questions with the new set provided.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Quiz updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Quiz or its category not found")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing quiz")
@@ -48,6 +64,11 @@ public class QuizController {
         return ResponseEntity.ok(updatedQuiz);
     }
 
+    @Operation(summary = "Delete a quiz", description = "Deletes a quiz and all of its associated questions and user attempts.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Quiz deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Quiz not found")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a quiz")
@@ -56,6 +77,11 @@ public class QuizController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get a quiz by ID for editing", description = "Retrieves the full details of a quiz, including all questions and correct answer information.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved quiz details"),
+            @ApiResponse(responseCode = "404", description = "Quiz not found")
+    })
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Get a quiz by id for admin")
@@ -63,6 +89,7 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getQuizForAdmin(id));
     }
 
+    @Operation(summary = "Get all quizzes with pagination")
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Get all quizzes for admin with filtering")
