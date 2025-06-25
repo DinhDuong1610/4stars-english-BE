@@ -3,6 +3,8 @@ package com.fourstars.FourStars.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,6 +26,8 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 @Service
 @CacheConfig(cacheNames = "plans")
 public class PlanService {
+    private static final Logger logger = LoggerFactory.getLogger(PlanService.class);
+
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
 
@@ -54,6 +58,8 @@ public class PlanService {
     @Transactional
     @CacheEvict(allEntries = true)
     public PlanResponseDTO create(PlanRequestDTO planRequestDTO) throws DuplicateResourceException {
+        logger.info("Request to create new plan with name: '{}'", planRequestDTO.getName());
+
         if (this.planRepository.existsByName(planRequestDTO.getName())) {
             throw new DuplicateResourceException("Plan name '" + planRequestDTO.getName() + "' already exists.");
         }
@@ -66,6 +72,7 @@ public class PlanService {
         plan.setActive(planRequestDTO.isActive());
 
         plan = this.planRepository.save(plan);
+        logger.info("Successfully created new plan with ID: {}", plan.getId());
 
         return this.convertToPlanResponseDTO(plan);
     }
@@ -73,6 +80,8 @@ public class PlanService {
     @Transactional(readOnly = true)
     @Cacheable(key = "#id")
     public PlanResponseDTO findById(long id) {
+        logger.debug("Request to fetch plan by ID: {}", id);
+
         Plan plan = this.planRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
 
@@ -81,6 +90,8 @@ public class PlanService {
 
     @Transactional(readOnly = true)
     public Plan getPlanEntityById(long id) throws ResourceNotFoundException {
+        logger.debug("Request to fetch plan ENTITY by ID: {}", id);
+
         return planRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
     }
@@ -89,6 +100,7 @@ public class PlanService {
     @CacheEvict(key = "#id")
     public PlanResponseDTO update(long id, PlanRequestDTO planRequestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
+        logger.info("Request to update plan with ID: {}", id);
 
         Plan planDB = this.getPlanEntityById(id);
 
@@ -105,6 +117,7 @@ public class PlanService {
         planDB.setActive(planRequestDTO.isActive());
 
         Plan updatedPlan = this.planRepository.save(planDB);
+        logger.info("Successfully updated plan with ID: {}", updatedPlan.getId());
 
         return this.convertToPlanResponseDTO(updatedPlan);
     }
@@ -112,6 +125,8 @@ public class PlanService {
     @Transactional
     @CacheEvict(key = "#id")
     public void delete(long id) throws ResourceNotFoundException, ResourceInUseException {
+        logger.info("Request to delete plan with ID: {}", id);
+
         Plan planToDelete = this.getPlanEntityById(id);
 
         if (this.subscriptionRepository.existsByPlanIdAndActiveTrue(id)) {
@@ -120,10 +135,15 @@ public class PlanService {
         }
 
         this.planRepository.delete(planToDelete);
+        logger.info("Successfully deleted plan with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<PlanResponseDTO> fetchAll(Pageable pageable) {
+        logger.debug("Request to fetch all plans, page: {}, size: {}", pageable.getPageNumber(),
+                pageable.getPageSize());
+
         Page<Plan> pagePlan = this.planRepository.findAll(pageable);
 
         List<PlanResponseDTO> planDTOs = pagePlan.getContent().stream()
@@ -135,6 +155,7 @@ public class PlanService {
                 pageable.getPageSize(),
                 pagePlan.getTotalPages(),
                 pagePlan.getTotalElements());
+        logger.debug("Found {} plans on page {}/{}", planDTOs.size(), meta.getPage(), meta.getPages());
 
         return new ResultPaginationDTO<>(meta, planDTOs);
     }

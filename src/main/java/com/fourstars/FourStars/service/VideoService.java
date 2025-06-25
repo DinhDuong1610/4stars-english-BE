@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,6 +28,8 @@ import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class VideoService {
+    private static final Logger logger = LoggerFactory.getLogger(VideoService.class);
+
     private final VideoRepository videoRepository;
     private final CategoryRepository categoryRepository;
 
@@ -62,6 +66,9 @@ public class VideoService {
     @Transactional
     public VideoResponseDTO createVideo(VideoRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Request to create new video with title: '{}' in category ID: {}", requestDTO.getTitle(),
+                requestDTO.getCategoryId());
+
         if (videoRepository.existsByTitleAndCategoryId(requestDTO.getTitle(), requestDTO.getCategoryId())) {
             throw new DuplicateResourceException("A video with the same title already exists in this category.");
         }
@@ -83,12 +90,16 @@ public class VideoService {
         video.setCategory(category);
 
         Video savedVideo = videoRepository.save(video);
+        logger.info("Successfully created new video with ID: {}", savedVideo.getId());
+
         return convertToVideoResponseDTO(savedVideo);
     }
 
     @Transactional
     public VideoResponseDTO updateVideo(long id, VideoRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Request to update video with ID: {}", id);
+
         Video videoDB = videoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Video not found with id: " + id));
 
@@ -112,19 +123,27 @@ public class VideoService {
         videoDB.setCategory(category);
 
         Video updatedVideo = videoRepository.save(videoDB);
+        logger.info("Successfully updated video with ID: {}", updatedVideo.getId());
+
         return convertToVideoResponseDTO(updatedVideo);
     }
 
     @Transactional
     public void deleteVideo(long id) throws ResourceNotFoundException {
+        logger.info("Request to delete video with ID: {}", id);
+
         Video videoToDelete = videoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Video not found with id: " + id));
 
         videoRepository.delete(videoToDelete);
+        logger.info("Successfully deleted video with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public VideoResponseDTO fetchVideoById(long id) throws ResourceNotFoundException {
+        logger.debug("Request to fetch video by ID: {}", id);
+
         Video video = videoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Video not found with id: " + id));
         return convertToVideoResponseDTO(video);
@@ -132,7 +151,10 @@ public class VideoService {
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<VideoResponseDTO> fetchAllVideos(Pageable pageable, Long categoryId, String title) {
+        logger.debug("Request to fetch all videos with categoryId: {} and title: {}", categoryId, title);
+
         Specification<Video> spec = (root, query, criteriaBuilder) -> {
+
             List<Predicate> predicates = new ArrayList<>();
             if (categoryId != null) {
                 predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));

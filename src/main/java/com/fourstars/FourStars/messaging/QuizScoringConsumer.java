@@ -23,17 +23,18 @@ public class QuizScoringConsumer {
 
     @RabbitListener(queues = RabbitMQConfig.QUIZ_SCORING_QUEUE)
     public void handleQuizScoring(QuizSubmissionMessage message) {
-        logger.info("Received quiz submission to score from user: {}", message.getUserId());
+        logger.info("[START] Processing quiz scoring for attempt ID: {}. User ID: {}",
+                message.getUserQuizAttemptId(), message.getUserId());
         try {
             quizService.processAndScoreQuiz(message);
-            logger.info("Successfully scored quiz for attempt: {}", message.getUserQuizAttemptId());
+            logger.info("[SUCCESS] Finished scoring quiz for attempt ID: {}", message.getUserQuizAttemptId());
 
         } catch (ResourceNotFoundException | BadRequestException e) {
-            logger.warn("Business logic error while scoring quiz for attempt {}: {}", message.getUserQuizAttemptId(),
-                    e.getMessage());
+            logger.warn("[SKIPPED] Business logic error while scoring attempt ID {}: {} - {}",
+                    message.getUserQuizAttemptId(), e.getClass().getSimpleName(), e.getMessage());
 
         } catch (Exception e) {
-            logger.error("Unexpected error scoring quiz for attempt: " + message.getUserQuizAttemptId(), e);
+            logger.error("[FAILED] Unexpected error scoring attempt ID: {}", message.getUserQuizAttemptId(), e);
         }
     }
 }

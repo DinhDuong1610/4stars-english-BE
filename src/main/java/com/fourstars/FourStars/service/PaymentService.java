@@ -5,6 +5,9 @@ import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.repository.SubscriptionRepository;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +22,8 @@ import java.util.*;
 
 @Service
 public class PaymentService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     @Value("${vnpay.tmn-code}")
     private String tmnCode;
@@ -48,6 +53,8 @@ public class PaymentService {
      * @return Một chuỗi String là URL thanh toán hoàn chỉnh.
      */
     public String createVNPayPayment(long subscriptionId, HttpServletRequest request) {
+        logger.info("Initiating VNPay payment creation for subscription ID: {}", subscriptionId);
+
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + subscriptionId));
 
@@ -55,6 +62,8 @@ public class PaymentService {
 
         // Tạo mã tham chiếu giao dịch duy nhất cho mỗi lần thanh toán
         String vnp_TxnRef = subscription.getId() + "_" + VNPayConfig.getRandomNumber(8);
+
+        logger.debug("Building VNPay params: amount={}, vnp_TxnRef={}", amount, vnp_TxnRef);
 
         // Lấy địa chỉ IP của người dùng
         String vnp_IpAddr = VNPayConfig.getIpAddress(request);
@@ -113,15 +122,23 @@ public class PaymentService {
         }
 
         String queryUrl = query.toString();
+        logger.debug("Raw query string for hashing: {}", hashData.toString());
+
         // Tạo chữ ký bảo mật
         String vnp_SecureHash = VNPayConfig.hmacSHA512(hashSecret, hashData.toString());
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
+
+        logger.info("Successfully created VNPay payment URL for subscription ID: {}", subscriptionId);
 
         return vnpUrl + "?" + queryUrl;
     }
 
     @Transactional
     public Map<String, String> handleVNPayIPN(Map<String, String> vnp_Params) throws UnsupportedEncodingException {
+        String orderInfo = vnp_Params.get("vnp_OrderInfo");
+        logger.info("Received IPN notification from VNPay for order: {}", orderInfo);
+        logger.debug("IPN raw params: {}", vnp_Params);
+
         // Lấy hash bí mật từ tham số trả về
         String vnp_SecureHash = vnp_Params.remove("vnp_SecureHash");
 
@@ -145,11 +162,14 @@ public class PaymentService {
 
         // Tạo chữ ký từ dữ liệu nhận được
         String mySecureHash = VNPayConfig.hmacSHA512(hashSecret, hashData.toString());
+        logger.debug("Calculated signature: {}. Signature from VNPay: {}", mySecureHash, vnp_SecureHash);
 
         Map<String, String> response = new HashMap<>();
 
         // 1. KIỂM TRA CHỮ KÝ
         if (mySecureHash.equals(vnp_SecureHash)) {
+            logger.info("IPN signature is valid for order: {}", orderInfo);
+
             // Lấy ID subscription từ mã giao dịch
             String vnp_TxnRef = vnp_Params.get("vnp_TxnRef");
             long subscriptionId = Long.parseLong(vnp_TxnRef.split("_")[0]);
@@ -167,6 +187,8 @@ public class PaymentService {
                     if (amountFromVNPay == amountFromDB) {
                         // 5. KIỂM TRA MÃ PHẢN HỒI CỦA VNPAY
                         if ("00".equals(vnp_Params.get("vnp_ResponseCode"))) {
+                            logger.info("Payment successful for subscription ID: {}. Updating status to PAID.",
+                                    subscriptionId);
                             // Giao dịch thành công -> Cập nhật trạng thái
                             subscription.setPaymentStatus(PaymentStatus.PAID);
                             subscription.setActive(true);
@@ -176,6 +198,9 @@ public class PaymentService {
                             response.put("RspCode", "00");
                             response.put("Message", "Confirm Success");
                         } else {
+                            logger.warn("Payment failed for subscription ID: {}. VNPay response code: {}",
+                                    subscriptionId, vnp_Params.get("vnp_ResponseCode"));
+
                             // Giao dịch thất bại
                             subscription.setPaymentStatus(PaymentStatus.FAILED);
                             subscriptionRepository.save(subscription);
@@ -184,21 +209,32 @@ public class PaymentService {
                             response.put("Message", "Confirm Failed");
                         }
                     } else {
+                        logger.error("IPN amount mismatch for subscription ID: {}. Expected: {}, Received: {}",
+                                subscriptionId, amountFromDB, amountFromVNPay);
+
                         response.put("RspCode", "04");
                         response.put("Message", "Invalid Amount");
                     }
                 } else {
+                    logger.warn("IPN received for an already confirmed subscription ID: {}", subscriptionId);
+
                     response.put("RspCode", "02");
                     response.put("Message", "Order already confirmed");
                 }
             } else {
+                logger.error("IPN received for non-existent subscription. vnp_TxnRef: {}", vnp_TxnRef);
+
                 response.put("RspCode", "01");
                 response.put("Message", "Order not Found");
             }
         } else {
+            logger.error("INVALID SIGNATURE for IPN notification. Order info: {}", orderInfo);
+
             response.put("RspCode", "97");
             response.put("Message", "Invalid Signature");
         }
+        logger.info("Finished processing IPN for order: {}. Responding with code: {}", orderInfo,
+                response.get("RspCode"));
 
         return response;
     }

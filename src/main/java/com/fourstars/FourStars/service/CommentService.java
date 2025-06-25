@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,12 +26,12 @@ import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
-import com.fourstars.FourStars.util.constant.NotificationType;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class CommentService {
+    private static final Logger logger = LoggerFactory.getLogger(CommentService.class);
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
@@ -96,7 +98,9 @@ public class CommentService {
     @Transactional
     public CommentResponseDTO createComment(CommentRequestDTO requestDTO)
             throws ResourceNotFoundException, BadRequestException {
+
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' creating comment for post ID: {}", currentUser.getEmail(), requestDTO.getPostId());
 
         Post post = postRepository.findById(requestDTO.getPostId())
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + requestDTO.getPostId()));
@@ -130,17 +134,7 @@ public class CommentService {
 
         Comment savedComment = commentRepository.save(comment);
 
-        // if (savedComment.getParentComment() != null) {
-        // User recipient = savedComment.getParentComment().getUser();
-        // User actor = savedComment.getUser();
-
-        // String message = actor.getName() + " đã trả lời bình luận của bạn.";
-        // String link = "/api/v1/posts/" + savedComment.getPost().getId() + "#comment-"
-        // + savedComment.getId();
-
-        // notificationService.createNotification(recipient, actor,
-        // NotificationType.NEW_REPLY, message, link);
-        // }
+        logger.info("Successfully created comment with ID: {}", savedComment.getId());
 
         if (savedComment.getParentComment() != null) {
             NewReplyMessage message = new NewReplyMessage(
@@ -153,6 +147,9 @@ public class CommentService {
                     RabbitMQConfig.NOTIFICATION_EXCHANGE,
                     "notification.new.reply",
                     message);
+
+            logger.info("Sent new reply notification message to RabbitMQ for recipient ID: {}",
+                    message.getRecipientId());
         }
 
         return convertToCommentResponseDTO(savedComment);
@@ -162,6 +159,7 @@ public class CommentService {
     public CommentResponseDTO updateComment(long id, CommentRequestDTO requestDTO)
             throws ResourceNotFoundException, BadRequestException {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' attempting to update comment ID: {}", currentUser.getEmail(), id);
 
         Comment commentDB = commentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + id));
@@ -172,12 +170,16 @@ public class CommentService {
 
         commentDB.setContent(requestDTO.getContent());
         Comment updatedComment = commentRepository.save(commentDB);
+
+        logger.info("Successfully updated comment with ID: {}", id);
+
         return convertToCommentResponseDTO(updatedComment);
     }
 
     @Transactional
     public void deleteComment(long id) throws ResourceNotFoundException, BadRequestException {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' attempting to delete comment ID: {}", currentUser.getEmail(), id);
 
         Comment commentToDelete = commentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + id));
@@ -188,10 +190,14 @@ public class CommentService {
         }
 
         commentRepository.delete(commentToDelete);
+        logger.info("Successfully deleted comment with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<CommentResponseDTO> fetchCommentsByPost(long postId, Pageable pageable) {
+        logger.debug("Fetching comments for post ID: {}", postId);
+
         Page<Comment> topLevelCommentsPage = commentRepository.findByPostIdAndParentCommentIsNull(postId, pageable);
 
         List<CommentResponseDTO> commentDTOs = topLevelCommentsPage.getContent().stream()
@@ -203,6 +209,8 @@ public class CommentService {
                 pageable.getPageSize(),
                 topLevelCommentsPage.getTotalPages(),
                 topLevelCommentsPage.getTotalElements());
+
+        logger.debug("Found {} top-level comments for post ID: {}", topLevelCommentsPage.getTotalElements(), postId);
 
         return new ResultPaginationDTO<>(meta, commentDTOs);
     }

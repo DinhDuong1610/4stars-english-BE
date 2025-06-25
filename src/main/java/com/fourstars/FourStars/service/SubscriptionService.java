@@ -5,6 +5,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,8 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class SubscriptionService {
+    private static final Logger logger = LoggerFactory.getLogger(SubscriptionService.class);
+
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
@@ -75,6 +79,7 @@ public class SubscriptionService {
     public SubscriptionResponseDTO create(SubscriptionRequestDTO request) throws DuplicateResourceException {
         String currentUserEmail = SecurityUtil.getCurrentUserLogin()
                 .orElseThrow(() -> new ResourceNotFoundException("User not authenticated to create a subscription."));
+        logger.info("User '{}' creating a subscription for plan ID: {}", currentUserEmail, request.getPlanId());
 
         User user = this.userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -107,21 +112,28 @@ public class SubscriptionService {
         subscription.setActive(false);
 
         Subscription savedSubscription = subscriptionRepository.save(subscription);
+        logger.info("Successfully created PENDING subscription with ID: {} for user '{}'", savedSubscription.getId(),
+                currentUserEmail);
         return convertToSubscriptionResponseDTO(savedSubscription);
     }
 
     @Transactional
     public SubscriptionResponseDTO confirmSubscriptionPayment(long subscriptionId, String transactionId,
             PaymentStatus status) throws ResourceNotFoundException {
+        logger.info("Admin/System confirming payment for subscription ID: {}. New status: {}, Transaction ID: {}",
+                subscriptionId, status, transactionId);
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + subscriptionId));
 
         subscription.setTransactionId(transactionId);
         subscription.setPaymentStatus(status);
         if (status == PaymentStatus.PAID) {
+            logger.info("Subscription ID: {} is now ACTIVE.", subscriptionId);
             subscription.setActive(true);
         } else {
             subscription.setActive(false);
+            logger.warn("Subscription ID: {} is INACTIVE due to payment status: {}", subscriptionId, status);
+
         }
         Subscription updatedSubscription = subscriptionRepository.save(subscription);
         return convertToSubscriptionResponseDTO(updatedSubscription);
@@ -129,6 +141,8 @@ public class SubscriptionService {
 
     @Transactional(readOnly = true)
     public SubscriptionResponseDTO fetchSubscriptionById(long id) throws ResourceNotFoundException {
+        logger.debug("Fetching subscription by ID: {}", id);
+
         String currentUserEmail = SecurityUtil.getCurrentUserLogin()
                 .orElseThrow(() -> new ResourceNotFoundException("User not authenticated."));
 
@@ -151,6 +165,8 @@ public class SubscriptionService {
         User user = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found."));
 
+        logger.debug("Fetching subscriptions for user '{}'", currentUserEmail);
+
         Page<Subscription> pageSubscription = subscriptionRepository.findByUserId(user.getId(), pageable);
         List<SubscriptionResponseDTO> subscriptionDTOs = pageSubscription.getContent().stream()
                 .map(this::convertToSubscriptionResponseDTO)
@@ -166,6 +182,9 @@ public class SubscriptionService {
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<SubscriptionResponseDTO> fetchAllSubscriptionsAsAdmin(Pageable pageable) {
+        logger.debug("Admin fetching all subscriptions, page: {}, size: {}", pageable.getPageNumber(),
+                pageable.getPageSize());
+
         Page<Subscription> pageSubscription = subscriptionRepository.findAll(pageable);
         List<SubscriptionResponseDTO> subscriptionDTOs = pageSubscription.getContent().stream()
                 .map(this::convertToSubscriptionResponseDTO)

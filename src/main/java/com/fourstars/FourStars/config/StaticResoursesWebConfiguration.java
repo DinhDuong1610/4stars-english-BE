@@ -7,14 +7,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class StaticResoursesWebConfiguration implements WebMvcConfigurer {
-    // @Value("${fourstars.upload-file.base-uri}")
-    // private String baseURI;
-
-    // @Override
-    // public void addResourceHandlers(ResourceHandlerRegistry registry) {
-    // registry.addResourceHandler("/storage/**")
-    // .addResourceLocations(baseURI);
-    // }
 
     @Value("${fourstars.upload-dir}")
     private String uploadDir;

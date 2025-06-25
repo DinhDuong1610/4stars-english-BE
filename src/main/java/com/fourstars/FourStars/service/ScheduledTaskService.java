@@ -4,7 +4,6 @@ import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.messaging.dto.notification.ReviewReminderMessage;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
-import com.fourstars.FourStars.util.constant.NotificationType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ScheduledTaskService {
@@ -36,13 +36,23 @@ public class ScheduledTaskService {
     @Scheduled(cron = "${myapp.scheduling.reminders.cron}", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public void sendReviewReminders() {
-        logger.info("Running scheduled task: Sending review reminders...");
+        logger.info("==================== Running scheduled task: Sending review reminders... ====================");
 
         // 1. Tìm tất cả người dùng có từ vựng cần ôn tập
         List<User> usersToNotify = userVocabularyRepository.findUsersWithPendingReviews(Instant.now());
+        if (usersToNotify.isEmpty()) {
+            logger.info("No users with pending reviews found. Task finished.");
+            return;
+        }
+
+        logger.info("Found {} user(s) with pending reviews to notify.", usersToNotify.size());
+        logger.debug("User IDs to be notified: {}",
+                usersToNotify.stream().map(User::getId).collect(Collectors.toList()));
 
         // 2. Lặp qua từng người dùng và gửi thông báo tổng hợp
         for (User user : usersToNotify) {
+            logger.debug("Processing user ID: {}. Counting overdue vocabularies...", user.getId());
+
             // Đếm chính xác số từ cần ôn tập của user này
             long reviewCount = user.getUserVocabularies().stream()
                     .filter(uv -> uv.getNextReviewAt() != null && uv.getNextReviewAt().isBefore(Instant.now()))
@@ -58,10 +68,15 @@ public class ScheduledTaskService {
                         RabbitMQConfig.NOTIFICATION_EXCHANGE,
                         "notification.reminder.review",
                         message);
-                logger.info("Sent review reminder message for user ID: {}", user.getId());
+                logger.info("Sent review reminder message for user ID: {}, Name: '{}', Count: {}", user.getId(),
+                        user.getName(), reviewCount);
+            } else {
+                logger.warn("User ID {} was found by query but has 0 reviewable words after count. Skipping.",
+                        user.getId());
             }
         }
         logger.info("Finished sending {} reminders.", usersToNotify.size());
+        logger.info("Finished sending {} reminder messages. Task complete.", usersToNotify.size());
     }
 
 }

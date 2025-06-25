@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -28,6 +30,8 @@ import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class GrammarService {
+    private static final Logger logger = LoggerFactory.getLogger(GrammarService.class);
+
     private final GrammarRepository grammarRepository;
     private final CategoryRepository categoryRepository;
 
@@ -61,6 +65,9 @@ public class GrammarService {
     @Transactional
     public GrammarResponseDTO createGrammar(GrammarRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Request to create new grammar lesson with name: '{}' in category ID: {}", requestDTO.getName(),
+                requestDTO.getCategoryId());
+
         if (grammarRepository.existsByNameAndCategoryId(requestDTO.getName(), requestDTO.getCategoryId())) {
             throw new DuplicateResourceException(
                     "A grammar lesson with the same name already exists in this category.");
@@ -74,7 +81,6 @@ public class GrammarService {
             throw new BadRequestException("The selected category is not of type 'GRAMMAR'.");
         }
 
-        // Làm sạch HTML trước khi lưu
         String unsafeContent = requestDTO.getContent();
         String safeContent = Jsoup.clean(unsafeContent, Safelist.basicWithImages());
 
@@ -84,12 +90,17 @@ public class GrammarService {
         grammar.setCategory(category);
 
         Grammar savedGrammar = grammarRepository.save(grammar);
+
+        logger.info("Successfully created new grammar lesson with ID: {}", savedGrammar.getId());
+
         return convertToGrammarResponseDTO(savedGrammar);
     }
 
     @Transactional
     public GrammarResponseDTO updateGrammar(long id, GrammarRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Request to update grammar lesson with ID: {}", id);
+
         Grammar grammarDB = grammarRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grammar lesson not found with id: " + id));
 
@@ -111,19 +122,28 @@ public class GrammarService {
         grammarDB.setCategory(category);
 
         Grammar updatedGrammar = grammarRepository.save(grammarDB);
+
+        logger.info("Successfully updated grammar lesson with ID: {}", updatedGrammar.getId());
+
         return convertToGrammarResponseDTO(updatedGrammar);
     }
 
     @Transactional
     public void deleteGrammar(long id) throws ResourceNotFoundException {
+        logger.info("Request to delete grammar lesson with ID: {}", id);
+
         Grammar grammarToDelete = grammarRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grammar lesson not found with id: " + id));
 
         grammarRepository.delete(grammarToDelete);
+        logger.info("Successfully deleted grammar lesson with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public GrammarResponseDTO fetchGrammarById(long id) throws ResourceNotFoundException {
+        logger.debug("Request to fetch grammar lesson by ID: {}", id);
+
         Grammar grammar = grammarRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grammar lesson not found with id: " + id));
         return convertToGrammarResponseDTO(grammar);
@@ -131,6 +151,8 @@ public class GrammarService {
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<GrammarResponseDTO> fetchAllGrammars(Pageable pageable, Long categoryId, String name) {
+        logger.debug("Request to fetch all grammar lessons with categoryId: {} and name: {}", categoryId, name);
+
         Specification<Grammar> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (categoryId != null) {
@@ -152,6 +174,9 @@ public class GrammarService {
                 pageable.getPageSize(),
                 pageGrammar.getTotalPages(),
                 pageGrammar.getTotalElements());
+
+        logger.debug("Found {} grammar lessons on page {}/{}", grammarDTOs.size(), meta.getPage(), meta.getPages());
+
         return new ResultPaginationDTO<>(meta, grammarDTOs);
     }
 }
