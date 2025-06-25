@@ -1,6 +1,9 @@
 package com.fourstars.FourStars.service;
 
 import com.fourstars.FourStars.util.error.BadRequestException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -15,6 +18,7 @@ import java.util.UUID;
 
 @Service
 public class FileService {
+    private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
     public record SavedFileInfo(String uniqueFilename, String originalFilename, long fileSize) {
     }
@@ -27,32 +31,34 @@ public class FileService {
             throw new BadRequestException("File is empty. Please select a file to upload.");
         }
 
-        // Tạo thư mục upload nếu nó chưa tồn tại
+        logger.info("Attempting to save file '{}' with size {} bytes.", file.getOriginalFilename(), file.getSize());
+
         Path uploadPath = Paths.get(this.uploadDir);
         if (!Files.exists(uploadPath)) {
+            logger.debug("Upload directory does not exist. Creating directory: {}", uploadPath);
+
             Files.createDirectories(uploadPath);
         }
 
-        // Lấy thông tin từ file gốc
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
         long fileSize = file.getSize();
 
-        // Tạo tên file duy nhất để tránh trùng lặp
         String fileExtension = "";
         try {
             fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
         } catch (Exception e) {
-            // Không có phần mở rộng file
+            logger.warn("Uploaded file '{}' has no extension.", originalFilename);
+
         }
         String uniqueFilename = UUID.randomUUID().toString() + fileExtension;
+        logger.debug("Generated unique filename: {}", uniqueFilename);
 
-        // Tạo đường dẫn đầy đủ đến file
         Path destinationPath = uploadPath.resolve(uniqueFilename);
+        logger.debug("Resolved final destination path: {}", destinationPath);
 
-        // Copy file vào thư mục đích
         Files.copy(file.getInputStream(), destinationPath, StandardCopyOption.REPLACE_EXISTING);
+        logger.info("Successfully saved file '{}' as '{}'.", originalFilename, uniqueFilename);
 
-        // Trả về một record chứa tất cả thông tin cần thiết
         return new SavedFileInfo(uniqueFilename, originalFilename, fileSize);
     }
 }

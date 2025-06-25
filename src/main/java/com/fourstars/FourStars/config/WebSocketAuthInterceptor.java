@@ -1,5 +1,7 @@
 package com.fourstars.FourStars.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -16,6 +18,7 @@ import java.util.List;
 
 @Component
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
     private final JwtDecoder jwtDecoder;
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
@@ -31,22 +34,34 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         // Chỉ kiểm tra khi client gửi lệnh CONNECT
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+            logger.debug("Intercepting STOMP CONNECT command for session ID: {}", accessor.getSessionId());
+
             // Lấy token từ header "Authorization"
             List<String> authorization = accessor.getNativeHeader("Authorization");
             if (authorization == null || authorization.isEmpty()) {
+                logger.warn("WebSocket CONNECT request for session ID {} without 'Authorization' header.",
+                        accessor.getSessionId());
+
                 return message;
             }
 
             String token = authorization.get(0);
             if (token != null && token.startsWith("Bearer ")) {
                 token = token.substring(7);
+                logger.debug("Found Bearer token for WebSocket session ID: {}. Attempting to validate.",
+                        accessor.getSessionId());
+
                 try {
                     Jwt jwt = jwtDecoder.decode(token);
                     UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) jwtAuthenticationConverter
                             .convert(jwt);
                     accessor.setUser(authentication);
+                    logger.info("Successfully authenticated user '{}' for WebSocket session ID: {}",
+                            authentication.getName(), accessor.getSessionId());
+
                 } catch (Exception e) {
-                    System.err.println("Invalid token for WebSocket connection: " + e.getMessage());
+                    logger.error("Invalid JWT token for WebSocket connection. Session ID: {}. Error: {}",
+                            accessor.getSessionId(), e.getMessage());
                 }
             }
         }

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,6 +55,8 @@ import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class QuizService {
+    private static final Logger logger = LoggerFactory.getLogger(QuizService.class);
+
     private final QuizRepository quizRepository;
     private final QuestionRepository questionRepository;
     private final UserQuizAttemptRepository userQuizAttemptRepository;
@@ -84,6 +88,8 @@ public class QuizService {
 
     @Transactional
     public QuizDTO createQuiz(QuizDTO quizDto) {
+        logger.info("Admin creating a new quiz with title: '{}'", quizDto.getTitle());
+
         Category category = categoryRepository.findById(quizDto.getCategoryId())
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Category not found with id: " + quizDto.getCategoryId()));
@@ -101,11 +107,15 @@ public class QuizService {
         }
 
         Quiz savedQuiz = quizRepository.save(quiz);
+        logger.info("Successfully created new quiz with ID: {}", savedQuiz.getId());
+
         return convertToQuizDTO(savedQuiz);
     }
 
     @Transactional
     public QuizDTO updateQuiz(long quizId, QuizDTO quizDto) {
+        logger.info("Admin updating quiz with ID: {}", quizId);
+
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
 
@@ -128,21 +138,28 @@ public class QuizService {
         }
 
         Quiz updatedQuiz = quizRepository.save(quiz);
+        logger.info("Successfully updated quiz with ID: {}", updatedQuiz.getId());
 
         return convertToQuizDTO(updatedQuiz);
     }
 
     @Transactional
     public void deleteQuiz(long quizId) {
+        logger.info("Admin deleting quiz with ID: {}", quizId);
+
         if (!quizRepository.existsById(quizId)) {
             throw new ResourceNotFoundException("Quiz not found with id: " + quizId);
         }
 
         quizRepository.deleteById(quizId);
+        logger.info("Successfully deleted quiz with ID: {}", quizId);
+
     }
 
     @Transactional(readOnly = true)
     public QuizDTO getQuizForAdmin(long quizId) {
+        logger.debug("Admin fetching quiz for editing with ID: {}", quizId);
+
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
         return convertToQuizDTO(quiz);
@@ -150,6 +167,8 @@ public class QuizService {
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<QuizDTO> getAllQuizzesForAdmin(Pageable pageable, Long categoryId) {
+        logger.debug("Fetching available quizzes for user, page: {}", pageable.getPageNumber());
+
         Specification<Quiz> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -178,6 +197,8 @@ public class QuizService {
     @Transactional
     public QuizForUserAttemptDTO startQuiz(long quizId) {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' starting quiz with ID: {}", currentUser.getEmail(), quizId);
+
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
 
@@ -192,12 +213,15 @@ public class QuizService {
         List<QuestionForUserDTO> questionForUserDTOs = quiz.getQuestions().stream()
                 .map(this::convertToQuestionForUserDTO)
                 .collect(Collectors.toList());
+        logger.info("User '{}' started new quiz attempt with ID: {}", currentUser.getEmail(), savedAttempt.getId());
 
         return new QuizForUserAttemptDTO(savedAttempt.getId(), quiz.getTitle(), questionForUserDTOs);
     }
 
     public void acceptQuizSubmission(SubmitQuizRequestDTO requestDTO) {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("Accepting quiz submission for attempt ID: {} from user '{}'", requestDTO.getUserQuizAttemptId(),
+                currentUser.getEmail());
 
         QuizSubmissionMessage message = new QuizSubmissionMessage(
                 currentUser.getId(),
@@ -208,10 +232,15 @@ public class QuizService {
                 RabbitMQConfig.QUIZ_SCORING_EXCHANGE,
                 RabbitMQConfig.QUIZ_SCORING_ROUTING_KEY,
                 message);
+        logger.info("Published quiz submission message for attempt ID {} to RabbitMQ.",
+                requestDTO.getUserQuizAttemptId());
+
     }
 
     @Transactional
     public QuizAttemptResponseDTO processAndScoreQuiz(QuizSubmissionMessage submitDTO) {
+        logger.info("BEGIN SCORING for attempt ID: {}", submitDTO.getUserQuizAttemptId());
+
         User currentUser = userRepository.findById(submitDTO.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + submitDTO.getUserId()));
         UserQuizAttempt attempt = userQuizAttemptRepository
@@ -220,6 +249,7 @@ public class QuizService {
                         () -> new ResourceNotFoundException("Quiz attempt not found or you don't have permission."));
 
         if (attempt.getStatus() == QuizStatus.COMPLETED) {
+            logger.warn("Attempting to score an already completed quiz. Attempt ID: {}", attempt.getId());
             throw new BadRequestException("This quiz has already been completed.");
         }
 
@@ -266,6 +296,8 @@ public class QuizService {
             }
 
             attempt.getUserAnswers().add(userAnswer);
+            logger.debug("Scoring question {}: user answer is correct? {}", ansReq.getQuestionId(), isCorrect);
+
         }
 
         attempt.setScore(totalScore);
@@ -273,6 +305,8 @@ public class QuizService {
         attempt.setCompletedAt(Instant.now());
 
         UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
+        logger.info("Scoring complete for attempt ID: {}. Final score: {}", savedAttempt.getId(),
+                savedAttempt.getScore());
 
         Set<Long> relatedVocabularyIds = new HashSet<>();
         for (UserAnswer answer : savedAttempt.getUserAnswers()) {
@@ -288,6 +322,8 @@ public class QuizService {
                 System.err.println("Could not add vocabulary " + vocabId + " to notebook. Error: " + e.getMessage());
             }
         });
+        logger.info("Adding {} related vocabularies to notebook for user {}", relatedVocabularyIds.size(),
+                currentUser.getId());
 
         QuizResultMessage resultMessage = new QuizResultMessage(
                 savedAttempt.getUser().getId(),
@@ -299,6 +335,7 @@ public class QuizService {
                 RabbitMQConfig.NOTIFICATION_EXCHANGE,
                 "notification.quiz.result",
                 resultMessage);
+        logger.info("Published quiz result notification for attempt ID: {}", savedAttempt.getId());
 
         return convertToQuizAttemptResponseDTO(savedAttempt);
     }
@@ -306,6 +343,8 @@ public class QuizService {
     @Transactional(readOnly = true)
     public QuizAttemptResponseDTO getQuizResult(long attemptId) {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.debug("User '{}' fetching result for attempt ID: {}", currentUser.getEmail(), attemptId);
+
         UserQuizAttempt attempt = userQuizAttemptRepository.findByIdAndUserId(attemptId, currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Quiz attempt result not found or you don't have permission."));

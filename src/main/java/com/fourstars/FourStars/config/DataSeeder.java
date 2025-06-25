@@ -47,7 +47,7 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        logger.info("Starting data seeding process...");
+        logger.info("========== STARTING DATA SEEDING PROCESS ==========");
 
         // --- 1. Tạo Roles ---
         Role adminRole = createRoleIfNotFound("ADMIN", "Quản trị viên hệ thống");
@@ -58,6 +58,9 @@ public class DataSeeder implements CommandLineRunner {
         if (permissionRepository.count() == 0) {
             logger.info("No permissions found, creating them from API endpoints...");
             createPermissions();
+        } else {
+            logger.info("Permissions already exist, skipping creation.");
+
         }
 
         // --- 3. Gán tất cả Permissions cho ADMIN ---
@@ -66,6 +69,11 @@ public class DataSeeder implements CommandLineRunner {
             List<Permission> allPermissions = permissionRepository.findAll();
             adminRole.setPermissions(allPermissions);
             roleRepository.save(adminRole);
+            logger.info("Assigned {} permissions to ADMIN role.", allPermissions.size());
+
+        } else {
+            logger.info("ADMIN role already has permissions, skipping assignment.");
+
         }
 
         // --- 4. Tạo User Admin mặc định ---
@@ -78,9 +86,14 @@ public class DataSeeder implements CommandLineRunner {
             adminUser.setActive(true);
             adminUser.setRole(adminRole);
             userRepository.save(adminUser);
+            logger.info("Default ADMIN user created.");
+
+        } else {
+            logger.info("Users already exist, skipping default user creation.");
+
         }
 
-        logger.info("Data seeding process finished.");
+        logger.info("========== DATA SEEDING PROCESS FINISHED ==========");
     }
 
     private Role createRoleIfNotFound(String name, String description) {
@@ -93,8 +106,6 @@ public class DataSeeder implements CommandLineRunner {
                     return roleRepository.save(newRole);
                 });
     }
-
-    // Trong file: config/DataSeeder.java
 
     private void createPermissions() {
         Map<RequestMappingInfo, org.springframework.web.method.HandlerMethod> handlerMethods = this.requestMappingHandlerMapping

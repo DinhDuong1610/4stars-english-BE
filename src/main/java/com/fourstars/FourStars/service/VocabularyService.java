@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +39,8 @@ import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class VocabularyService {
+    private static final Logger logger = LoggerFactory.getLogger(VocabularyService.class);
+
     private final VocabularyRepository vocabularyRepository;
     private final CategoryRepository categoryRepository;
     private final UserVocabularyRepository userVocabularyRepository;
@@ -103,6 +107,9 @@ public class VocabularyService {
     @Transactional
     public VocabularyResponseDTO createVocabulary(VocabularyRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Admin creating new vocabulary '{}' in category ID {}", requestDTO.getWord(),
+                requestDTO.getCategoryId());
+
         if (vocabularyRepository.existsByWordAndCategoryId(requestDTO.getWord(), requestDTO.getCategoryId())) {
             throw new DuplicateResourceException("A vocabulary with the same word already exists in this category.");
         }
@@ -128,12 +135,16 @@ public class VocabularyService {
         vocab.setCategory(category);
 
         Vocabulary savedVocab = vocabularyRepository.save(vocab);
+        logger.info("Successfully created new vocabulary with ID: {}", savedVocab.getId());
+
         return convertToVocabularyResponseDTO(savedVocab);
     }
 
     @Transactional
     public VocabularyResponseDTO updateVocabulary(long id, VocabularyRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Admin updating vocabulary with ID: {}", id);
+
         Vocabulary vocabDB = vocabularyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + id));
 
@@ -162,21 +173,30 @@ public class VocabularyService {
         vocabDB.setCategory(category);
 
         Vocabulary updatedVocab = vocabularyRepository.save(vocabDB);
+        logger.info("Successfully updated vocabulary with ID: {}", updatedVocab.getId());
+
         return convertToVocabularyResponseDTO(updatedVocab);
     }
 
     @Transactional
     public void deleteVocabulary(long id) throws ResourceNotFoundException {
+        logger.info("Admin deleting vocabulary with ID: {}", id);
+
         if (!vocabularyRepository.existsById(id)) {
             throw new ResourceNotFoundException("Vocabulary not found with id: " + id);
         }
+        logger.warn("Deleting all user progress associated with vocabulary ID: {}", id);
 
         userVocabularyRepository.deleteByVocabularyId(id);
         vocabularyRepository.deleteById(id);
+        logger.info("Successfully deleted vocabulary with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public VocabularyResponseDTO fetchVocabularyById(long id) throws ResourceNotFoundException {
+        logger.debug("Fetching vocabulary by ID: {}", id);
+
         Vocabulary vocab = vocabularyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vocabulary not found with id: " + id));
         return convertToVocabularyResponseDTO(vocab);
@@ -185,6 +205,8 @@ public class VocabularyService {
     @Transactional(readOnly = true)
     public ResultPaginationDTO<VocabularyResponseDTO> fetchAllVocabularies(Pageable pageable, Long categoryId,
             String word) {
+        logger.debug("Fetching all vocabularies with categoryId: {} and word: {}", categoryId, word);
+
         Specification<Vocabulary> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (categoryId != null) {
@@ -213,11 +235,13 @@ public class VocabularyService {
     @Transactional(readOnly = true)
     public List<VocabularyResponseDTO> getVocabulariesForReview(int limit) throws ResourceNotFoundException {
         User user = getCurrentAuthenticatedUser();
+        logger.info("User '{}' requesting {} vocabularies for review.", user.getEmail(), limit);
 
         Pageable pageable = PageRequest.of(0, limit);
 
         List<Vocabulary> vocabularies = vocabularyRepository.findVocabulariesForReview(user.getId(), Instant.now(),
                 pageable);
+        logger.info("Found {} vocabularies for user '{}' to review.", vocabularies.size(), user.getEmail());
 
         return vocabularies.stream()
                 .map(this::convertToVocabularyResponseDTO)
@@ -235,6 +259,8 @@ public class VocabularyService {
     public UserVocabulary submitVocabularyReview(SubmitReviewRequestDTO reviewDTO)
             throws ResourceNotFoundException {
         User user = getCurrentAuthenticatedUser();
+        logger.info("User '{}' submitting review for vocabulary ID: {} with quality: {}",
+                user.getEmail(), reviewDTO.getVocabularyId(), reviewDTO.getQuality());
         Long vocabularyId = reviewDTO.getVocabularyId();
 
         UserVocabularyId userVocabularyId = new UserVocabularyId(user.getId(), vocabularyId);
@@ -266,13 +292,17 @@ public class VocabularyService {
         userVocabulary.setLastReviewedAt(Instant.now());
 
         userVocabulary = userVocabularyRepository.save(userVocabulary);
+        logger.info("Successfully updated learning progress for user '{}' and vocabulary ID {}", user.getEmail(),
+                reviewDTO.getVocabularyId());
 
         return userVocabulary;
     }
 
     @Transactional
     public UserVocabularyResponseDTO addVocabularyToNotebook(Long vocabularyId) {
+
         User user = getCurrentAuthenticatedUser();
+        logger.info("User '{}' requesting to add vocabulary ID {} to notebook.", user.getEmail(), vocabularyId);
         return this.createOrGetNotebookEntry(user, vocabularyId);
     }
 

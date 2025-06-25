@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -49,12 +48,15 @@ import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
 @Service
 public class UserService implements UserDetailsService {
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final BadgeRepository badgeRepository;
@@ -126,6 +128,7 @@ public class UserService implements UserDetailsService {
         if (userRepository.existsByEmail(requestDTO.getEmail())) {
             throw new DuplicateResourceException("Email '" + requestDTO.getEmail() + "' already exists.");
         }
+        logger.info("Admin attempting to create a new user with email: {}", requestDTO.getEmail());
 
         User user = new User();
         user.setName(requestDTO.getName());
@@ -146,12 +149,15 @@ public class UserService implements UserDetailsService {
         }
 
         User savedUser = userRepository.save(user);
+        logger.info("Admin successfully created new user with ID: {}", savedUser.getId());
 
         return convertToUserResponseDTO(savedUser);
     }
 
     @Transactional(readOnly = true)
     public UserResponseDTO fetchUserById(long id) throws ResourceNotFoundException {
+        logger.debug("Fetching user by ID: {}", id);
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         return convertToUserResponseDTO(user);
@@ -168,6 +174,7 @@ public class UserService implements UserDetailsService {
             throws ResourceNotFoundException, DuplicateResourceException {
         User userDB = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        logger.info("Admin attempting to update user with ID: {}", id);
 
         String oldEmail = userDB.getEmail();
 
@@ -212,20 +219,28 @@ public class UserService implements UserDetailsService {
                 cache.evict(requestDTO.getEmail());
             }
         }
+        logger.info("Successfully updated user with ID: {}. Evicting cache for email: {}", updatedUser.getId(),
+                updatedUser.getEmail());
 
         return convertToUserResponseDTO(updatedUser);
     }
 
     @Transactional
     public void deleteUser(long id) throws ResourceNotFoundException {
+        logger.info("Admin attempting to delete user with ID: {}", id);
+
         User userToDelete = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         userRepository.delete(userToDelete);
+        logger.info("Successfully deleted user with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable) {
+        logger.debug("Fetching all users, page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
+
         Page<User> pageUser = userRepository.findAll(pageable);
         List<UserResponseDTO> userDTOs = pageUser.getContent().stream()
                 .map(this::convertToUserResponseDTO)
@@ -242,6 +257,8 @@ public class UserService implements UserDetailsService {
     @Transactional(readOnly = true)
     @Cacheable(value = "user_permissions", key = "#email")
     public UserPermissionDTO getPermissionsByEmail(String email) {
+        logger.debug("Fetching permissions for user: '{}'. Checking cache 'user_permissions' first.", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
 
@@ -257,6 +274,7 @@ public class UserService implements UserDetailsService {
     }
 
     public User getUserEntityByEmail(String email) throws ResourceNotFoundException {
+
         Cache cache = cacheManager.getCache("user_permissions");
         if (cache != null) {
             User cachedUser = cache.get(email, User.class);
@@ -289,6 +307,7 @@ public class UserService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+        logger.debug("Loading user by username for Spring Security context: {}", email);
 
         List<GrantedAuthority> authorities = new ArrayList<>();
         if (user.getRole() != null) {
@@ -334,6 +353,8 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void updateUserToken(String refreshToken, String email) throws ResourceNotFoundException {
+        logger.info("Updating refresh token for user: {}", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found with email: " + email + " for updating token."));
@@ -371,6 +392,8 @@ public class UserService implements UserDetailsService {
     @Transactional
     public UserResponseDTO registerNewUser(RegisterRequestDTO registerDTO)
             throws DuplicateResourceException, ResourceNotFoundException {
+        logger.info("New user registration attempt for email: {}", registerDTO.getEmail());
+
         if (userRepository.existsByEmail(registerDTO.getEmail())) {
             throw new DuplicateResourceException("Email '" + registerDTO.getEmail() + "' already exists.");
         }
@@ -398,12 +421,15 @@ public class UserService implements UserDetailsService {
         newUser.setRole(assignedRole);
 
         User savedUser = userRepository.save(newUser);
+        logger.info("Successfully registered new user with ID: {}", savedUser.getId());
 
         return convertToUserResponseDTO(savedUser);
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<UserResponseDTO> getLeaderboard(Pageable pageable) {
+        logger.debug("Fetching leaderboard data, page: {}", pageable.getPageNumber());
+
         Page<User> userPage = this.userRepository.findAllByOrderByPointDesc(pageable);
 
         List<UserResponseDTO> userDTOs = userPage.getContent().stream()
@@ -421,6 +447,8 @@ public class UserService implements UserDetailsService {
 
     public DashboardResponseDTO getUserDashboard() {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.debug("Fetching dashboard data for user: {}", currentUser.getEmail());
+
         DashboardResponseDTO dashboard = new DashboardResponseDTO();
 
         // 1. Tổng số từ vựng trong sổ tay
