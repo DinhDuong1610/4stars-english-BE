@@ -17,9 +17,15 @@ import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.constant.PaymentStatus;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/v1/admin/subscriptions")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Subscription Management API", description = "APIs for creating and managing user subscriptions")
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
@@ -28,6 +34,11 @@ public class SubscriptionController {
         this.subscriptionService = subscriptionService;
     }
 
+    @Operation(summary = "Confirm a subscription payment", description = "Manually updates the payment status of a subscription. Can also be used as a webhook target.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment status updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
     @PostMapping("/confirm-payment/{subscriptionId}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<SubscriptionResponseDTO> confirmPayment(
@@ -39,6 +50,7 @@ public class SubscriptionController {
         return ResponseEntity.ok(updatedSubscription);
     }
 
+    @Operation(summary = "Get a subscription by ID", description = "Allows an admin to retrieve any subscription by its ID.")
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a subscription by its ID")
@@ -48,6 +60,7 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscription);
     }
 
+    @Operation(summary = "Get all subscriptions", description = "Retrieves a paginated list of all subscriptions in the system.")
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("ADMIN: Fetch all subscriptions with pagination")
