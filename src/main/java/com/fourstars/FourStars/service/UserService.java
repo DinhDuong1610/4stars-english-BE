@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,6 +28,7 @@ import com.fourstars.FourStars.domain.Role;
 import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
+import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
@@ -47,6 +49,8 @@ import com.fourstars.FourStars.repository.UserVocabularyRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -238,10 +242,36 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable) {
+    public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable, String name, String email,
+            Boolean active, String role, Instant startCreatedAt, Instant endCreatedAt) {
         logger.debug("Fetching all users, page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<User> pageUser = userRepository.findAll(pageable);
+        Specification<User> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (name != null && !name.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")),
+                        "%" + name.trim().toLowerCase() + "%"));
+            }
+            if (email != null && !email.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")),
+                        "%" + email.trim().toLowerCase() + "%"));
+            }
+            if (active != null) {
+                predicates.add(criteriaBuilder.equal(root.get("active"), active));
+            }
+            if (role != null && !role.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.equal(root.get("role").get("name"), role));
+            }
+            if (startCreatedAt != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startCreatedAt));
+            }
+            if (endCreatedAt != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endCreatedAt));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<User> pageUser = userRepository.findAll(spec, pageable);
         List<UserResponseDTO> userDTOs = pageUser.getContent().stream()
                 .map(this::convertToUserResponseDTO)
                 .collect(Collectors.toList());

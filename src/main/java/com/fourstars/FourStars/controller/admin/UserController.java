@@ -1,5 +1,7 @@
 package com.fourstars.FourStars.controller.admin;
 
+import java.time.Instant;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
@@ -113,8 +116,16 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all users with pagination")
-    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(Pageable pageable) {
-        ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable);
+    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(
+            Pageable pageable,
+            @RequestParam(name = "name", required = false) String name,
+            @RequestParam(name = "email", required = false) String email,
+            @RequestParam(name = "role", required = false) String role,
+            @RequestParam(name = "active", required = false) Boolean active,
+            @RequestParam(name = "startCreatedAt", required = false) Instant startCreatedAt,
+            @RequestParam(name = "endCreatedAt", required = false) Instant endCreatedAt) {
+        ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable, name, email, active, role,
+                startCreatedAt, endCreatedAt);
         return ResponseEntity.ok(result);
     }
 }
