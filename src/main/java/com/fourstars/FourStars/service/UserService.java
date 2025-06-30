@@ -1,9 +1,13 @@
 package com.fourstars.FourStars.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,6 +16,7 @@ import java.util.stream.Collectors;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,6 +32,7 @@ import com.fourstars.FourStars.domain.Role;
 import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
+import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
@@ -45,8 +51,11 @@ import com.fourstars.FourStars.repository.UserQuizAttemptRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,6 +163,59 @@ public class UserService implements UserDetailsService {
         return convertToUserResponseDTO(savedUser);
     }
 
+    @Transactional
+    public List<UserResponseDTO> createBulkUsers(List<CreateUserRequestDTO> requestDTOs)
+            throws DuplicateResourceException {
+        logger.info("Admin request to create {} users in bulk", requestDTOs.size());
+
+        if (requestDTOs == null || requestDTOs.isEmpty()) {
+            throw new BadRequestException("User list cannot be empty.");
+        }
+
+        Set<String> emailsInRequest = new HashSet<>();
+        for (CreateUserRequestDTO dto : requestDTOs) {
+            if (!emailsInRequest.add(dto.getEmail().toLowerCase())) {
+                throw new DuplicateResourceException("Duplicate email found in the request list: " + dto.getEmail());
+            }
+        }
+
+        List<User> existingUsers = userRepository.findByEmailIn(emailsInRequest);
+        if (!existingUsers.isEmpty()) {
+            String existingEmails = existingUsers.stream()
+                    .map(User::getEmail)
+                    .collect(Collectors.joining(", "));
+            throw new DuplicateResourceException("The following emails already exist: " + existingEmails);
+        }
+
+        List<User> usersToSave = new ArrayList<>();
+        for (CreateUserRequestDTO dto : requestDTOs) {
+            User user = new User();
+            user.setName(dto.getName());
+            user.setEmail(dto.getEmail());
+            user.setPassword(passwordEncoder.encode(dto.getPassword()));
+            user.setActive(dto.isActive());
+            user.setPoint(0);
+
+            Badge badge = badgeRepository.findById(dto.getBadgeId() != null ? dto.getBadgeId() : 1L)
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Badge not found with id: " + dto.getBadgeId()));
+            user.setBadge(badge);
+
+            Role role = roleRepository.findById(dto.getRoleId() != null ? dto.getRoleId() : 2L)
+                    .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + dto.getRoleId()));
+            user.setRole(role);
+
+            usersToSave.add(user);
+        }
+
+        List<User> savedUsers = userRepository.saveAll(usersToSave);
+        logger.info("Successfully created {} new users in bulk.", savedUsers.size());
+
+        return savedUsers.stream()
+                .map(this::convertToUserResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public UserResponseDTO fetchUserById(long id) throws ResourceNotFoundException {
         logger.debug("Fetching user by ID: {}", id);
@@ -238,10 +300,38 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable) {
+    public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable, String name, String email,
+            Boolean active, String role, LocalDate startCreatedAt, LocalDate endCreatedAt) {
         logger.debug("Fetching all users, page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<User> pageUser = userRepository.findAll(pageable);
+        Specification<User> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (name != null && !name.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")),
+                        "%" + name.trim().toLowerCase() + "%"));
+            }
+            if (email != null && !email.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")),
+                        "%" + email.trim().toLowerCase() + "%"));
+            }
+            if (active != null) {
+                predicates.add(criteriaBuilder.equal(root.get("active"), active));
+            }
+            if (role != null && !role.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.equal(root.get("role").get("name"), role));
+            }
+            if (startCreatedAt != null) {
+                Instant startInstant = startCreatedAt.atStartOfDay(ZoneOffset.UTC).toInstant();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startInstant));
+            }
+            if (endCreatedAt != null) {
+                Instant endInstant = endCreatedAt.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endInstant));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<User> pageUser = userRepository.findAll(spec, pageable);
         List<UserResponseDTO> userDTOs = pageUser.getContent().stream()
                 .map(this::convertToUserResponseDTO)
                 .collect(Collectors.toList());
