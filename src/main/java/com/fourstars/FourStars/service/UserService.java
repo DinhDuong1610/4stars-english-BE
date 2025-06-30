@@ -7,6 +7,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +51,7 @@ import com.fourstars.FourStars.repository.UserQuizAttemptRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
 import com.fourstars.FourStars.util.SecurityUtil;
+import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -159,6 +161,59 @@ public class UserService implements UserDetailsService {
         logger.info("Admin successfully created new user with ID: {}", savedUser.getId());
 
         return convertToUserResponseDTO(savedUser);
+    }
+
+    @Transactional
+    public List<UserResponseDTO> createBulkUsers(List<CreateUserRequestDTO> requestDTOs)
+            throws DuplicateResourceException {
+        logger.info("Admin request to create {} users in bulk", requestDTOs.size());
+
+        if (requestDTOs == null || requestDTOs.isEmpty()) {
+            throw new BadRequestException("User list cannot be empty.");
+        }
+
+        Set<String> emailsInRequest = new HashSet<>();
+        for (CreateUserRequestDTO dto : requestDTOs) {
+            if (!emailsInRequest.add(dto.getEmail().toLowerCase())) {
+                throw new DuplicateResourceException("Duplicate email found in the request list: " + dto.getEmail());
+            }
+        }
+
+        List<User> existingUsers = userRepository.findByEmailIn(emailsInRequest);
+        if (!existingUsers.isEmpty()) {
+            String existingEmails = existingUsers.stream()
+                    .map(User::getEmail)
+                    .collect(Collectors.joining(", "));
+            throw new DuplicateResourceException("The following emails already exist: " + existingEmails);
+        }
+
+        List<User> usersToSave = new ArrayList<>();
+        for (CreateUserRequestDTO dto : requestDTOs) {
+            User user = new User();
+            user.setName(dto.getName());
+            user.setEmail(dto.getEmail());
+            user.setPassword(passwordEncoder.encode(dto.getPassword()));
+            user.setActive(dto.isActive());
+            user.setPoint(0);
+
+            Badge badge = badgeRepository.findById(dto.getBadgeId() != null ? dto.getBadgeId() : 1L)
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Badge not found with id: " + dto.getBadgeId()));
+            user.setBadge(badge);
+
+            Role role = roleRepository.findById(dto.getRoleId() != null ? dto.getRoleId() : 2L)
+                    .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + dto.getRoleId()));
+            user.setRole(role);
+
+            usersToSave.add(user);
+        }
+
+        List<User> savedUsers = userRepository.saveAll(usersToSave);
+        logger.info("Successfully created {} new users in bulk.", savedUsers.size());
+
+        return savedUsers.stream()
+                .map(this::convertToUserResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,7 @@
 package com.fourstars.FourStars.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -19,6 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     @EntityGraph(attributePaths = { "role", "badge", "role.permissions" })
     Optional<User> findByEmail(String email);
+
+    List<User> findByEmailIn(Collection<String> emails);
 
     boolean existsByEmail(String email);
 

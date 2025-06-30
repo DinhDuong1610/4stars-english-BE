@@ -2,6 +2,7 @@ package com.fourstars.FourStars.controller.admin;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -41,93 +42,109 @@ import jakarta.validation.Valid;
 @Tag(name = "Admin - User Management API", description = "APIs for Administrators to manage users")
 public class UserController {
 
-    private final UserService userService;
+        private final UserService userService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+        public UserController(UserService userService) {
+                this.userService = userService;
+        }
 
-    @Operation(summary = "Create a new user", description = "Allows an admin to create a new user account with a specific role.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "User created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid user data provided"),
-            @ApiResponse(responseCode = "403", description = "Access denied"),
-            @ApiResponse(responseCode = "409", description = "Email already exists")
-    })
-    @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @ApiMessage("Create a new user")
-    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody CreateUserRequestDTO createUserRequestDTO)
-            throws DuplicateResourceException, ResourceNotFoundException {
-        UserResponseDTO createdUser = userService.createUser(createUserRequestDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
-    }
+        @Operation(summary = "Create a new user", description = "Allows an admin to create a new user account with a specific role.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "User created successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid user data provided"),
+                        @ApiResponse(responseCode = "403", description = "Access denied"),
+                        @ApiResponse(responseCode = "409", description = "Email already exists")
+        })
+        @PostMapping
+        @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+        @ApiMessage("Create a new user")
+        public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody CreateUserRequestDTO createUserRequestDTO)
+                        throws DuplicateResourceException, ResourceNotFoundException {
+                UserResponseDTO createdUser = userService.createUser(createUserRequestDTO);
+                return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+        }
 
-    @Operation(summary = "Get a user by ID", description = "Retrieves the details of a specific user by their ID.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved user"),
-            @ApiResponse(responseCode = "403", description = "Access denied"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @ApiMessage("Fetch a user by their ID")
-    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable long id) throws ResourceNotFoundException {
-        UserResponseDTO user = userService.fetchUserById(id);
-        return ResponseEntity.ok(user);
-    }
+        @Operation(summary = "Create multiple users in bulk", description = "Creates a list of new user accounts. The entire operation is transactional.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "All users created successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid data in the list"),
+                        @ApiResponse(responseCode = "409", description = "One or more emails already exist")
+        })
+        @PostMapping("/bulk")
+        @ApiMessage("Create a list of users")
+        @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+        public ResponseEntity<List<UserResponseDTO>> createBulkUsers(
+                        @Valid @RequestBody List<CreateUserRequestDTO> userList) throws DuplicateResourceException {
+                List<UserResponseDTO> createdUsers = userService.createBulkUsers(userList);
+                return ResponseEntity.status(HttpStatus.CREATED).body(createdUsers);
+        }
 
-    @Operation(summary = "Update an existing user", description = "Allows an admin to update a user's details, role, or status.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "User updated successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid data or ID mismatch"),
-            @ApiResponse(responseCode = "403", description = "Access denied"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @ApiMessage("Update an existing user")
-    public ResponseEntity<UserResponseDTO> updateUser(
-            @PathVariable long id,
-            @Valid @RequestBody UpdateUserRequestDTO updateUserRequestDTO)
-            throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        @Operation(summary = "Get a user by ID", description = "Retrieves the details of a specific user by their ID.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved user"),
+                        @ApiResponse(responseCode = "403", description = "Access denied"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        @GetMapping("/{id}")
+        @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+        @ApiMessage("Fetch a user by their ID")
+        public ResponseEntity<UserResponseDTO> getUserById(@PathVariable long id) throws ResourceNotFoundException {
+                UserResponseDTO user = userService.fetchUserById(id);
+                return ResponseEntity.ok(user);
+        }
 
-        UserResponseDTO updatedUser = userService.updateUser(id, updateUserRequestDTO);
-        return ResponseEntity.ok(updatedUser);
-    }
+        @Operation(summary = "Update an existing user", description = "Allows an admin to update a user's details, role, or status.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "User updated successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid data or ID mismatch"),
+                        @ApiResponse(responseCode = "403", description = "Access denied"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        @PutMapping("/{id}")
+        @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+        @ApiMessage("Update an existing user")
+        public ResponseEntity<UserResponseDTO> updateUser(
+                        @PathVariable long id,
+                        @Valid @RequestBody UpdateUserRequestDTO updateUserRequestDTO)
+                        throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
 
-    @Operation(summary = "Delete a user", description = "Permanently deletes a user account. This action cannot be undone.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "User deleted successfully"),
-            @ApiResponse(responseCode = "403", description = "Access denied"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @ApiMessage("Delete a user")
-    public ResponseEntity<Void> deleteUser(@PathVariable long id) throws ResourceNotFoundException {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
-    }
+                UserResponseDTO updatedUser = userService.updateUser(id, updateUserRequestDTO);
+                return ResponseEntity.ok(updatedUser);
+        }
 
-    @Operation(summary = "Get all users with pagination", description = "Retrieves a paginated list of all user accounts.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved user list"),
-            @ApiResponse(responseCode = "403", description = "Access denied")
-    })
-    @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @ApiMessage("Fetch all users with pagination")
-    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(
-            Pageable pageable,
-            @RequestParam(name = "name", required = false) String name,
-            @RequestParam(name = "email", required = false) String email,
-            @RequestParam(name = "role", required = false) String role,
-            @RequestParam(name = "active", required = false) Boolean active,
-            @RequestParam(name = "startCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startCreatedAt,
-            @RequestParam(name = "endCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endCreatedAt) {
-        ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable, name, email, active, role,
-                startCreatedAt, endCreatedAt);
-        return ResponseEntity.ok(result);
-    }
+        @Operation(summary = "Delete a user", description = "Permanently deletes a user account. This action cannot be undone.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "User deleted successfully"),
+                        @ApiResponse(responseCode = "403", description = "Access denied"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        @DeleteMapping("/{id}")
+        @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+        @ApiMessage("Delete a user")
+        public ResponseEntity<Void> deleteUser(@PathVariable long id) throws ResourceNotFoundException {
+                userService.deleteUser(id);
+                return ResponseEntity.noContent().build();
+        }
+
+        @Operation(summary = "Get all users with pagination", description = "Retrieves a paginated list of all user accounts.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved user list"),
+                        @ApiResponse(responseCode = "403", description = "Access denied")
+        })
+        @GetMapping
+        @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+        @ApiMessage("Fetch all users with pagination")
+        public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(
+                        Pageable pageable,
+                        @RequestParam(name = "name", required = false) String name,
+                        @RequestParam(name = "email", required = false) String email,
+                        @RequestParam(name = "role", required = false) String role,
+                        @RequestParam(name = "active", required = false) Boolean active,
+                        @RequestParam(name = "startCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startCreatedAt,
+                        @RequestParam(name = "endCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endCreatedAt) {
+                ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable, name, email, active,
+                                role,
+                                startCreatedAt, endCreatedAt);
+                return ResponseEntity.ok(result);
+        }
 }
