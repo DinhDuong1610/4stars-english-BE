@@ -1,6 +1,9 @@
 package com.fourstars.FourStars.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -243,7 +246,7 @@ public class UserService implements UserDetailsService {
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<UserResponseDTO> fetchAllUsers(Pageable pageable, String name, String email,
-            Boolean active, String role, Instant startCreatedAt, Instant endCreatedAt) {
+            Boolean active, String role, LocalDate startCreatedAt, LocalDate endCreatedAt) {
         logger.debug("Fetching all users, page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
 
         Specification<User> spec = (root, query, criteriaBuilder) -> {
@@ -263,10 +266,12 @@ public class UserService implements UserDetailsService {
                 predicates.add(criteriaBuilder.equal(root.get("role").get("name"), role));
             }
             if (startCreatedAt != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startCreatedAt));
+                Instant startInstant = startCreatedAt.atStartOfDay(ZoneOffset.UTC).toInstant();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startInstant));
             }
             if (endCreatedAt != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endCreatedAt));
+                Instant endInstant = endCreatedAt.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endInstant));
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };

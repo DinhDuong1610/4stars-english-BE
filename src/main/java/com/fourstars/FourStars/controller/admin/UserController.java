@@ -1,8 +1,10 @@
 package com.fourstars.FourStars.controller.admin;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -122,8 +124,8 @@ public class UserController {
             @RequestParam(name = "email", required = false) String email,
             @RequestParam(name = "role", required = false) String role,
             @RequestParam(name = "active", required = false) Boolean active,
-            @RequestParam(name = "startCreatedAt", required = false) Instant startCreatedAt,
-            @RequestParam(name = "endCreatedAt", required = false) Instant endCreatedAt) {
+            @RequestParam(name = "startCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startCreatedAt,
+            @RequestParam(name = "endCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endCreatedAt) {
         ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable, name, email, active, role,
                 startCreatedAt, endCreatedAt);
         return ResponseEntity.ok(result);
