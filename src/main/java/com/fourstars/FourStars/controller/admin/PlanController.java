@@ -1,6 +1,10 @@
 package com.fourstars.FourStars.controller.admin;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.Plan;
@@ -104,8 +109,17 @@ public class PlanController {
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all plans with pagination")
-    public ResponseEntity<ResultPaginationDTO<PlanResponseDTO>> getAllPlans(Pageable pageable) {
-        ResultPaginationDTO<PlanResponseDTO> result = planService.fetchAll(pageable);
+    public ResponseEntity<ResultPaginationDTO<PlanResponseDTO>> getAllPlans(Pageable pageable,
+            @RequestParam(name = "name", required = false) String name,
+            @RequestParam(name = "active", required = false) Boolean active,
+            @RequestParam(name = "minPrice", required = false) BigDecimal minPrice,
+            @RequestParam(name = "maxPrice", required = false) BigDecimal maxPrice,
+            @RequestParam(name = "minDuration", required = false) Integer minDuration,
+            @RequestParam(name = "maxDuration", required = false) Integer maxDuration,
+            @RequestParam(name = "startCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startCreatedAt,
+            @RequestParam(name = "endCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endCreatedAt) {
+        ResultPaginationDTO<PlanResponseDTO> result = planService.fetchAll(pageable, name, minPrice, maxPrice,
+                minDuration, maxDuration, active, startCreatedAt, endCreatedAt);
         return ResponseEntity.ok(result);
     }
 }
