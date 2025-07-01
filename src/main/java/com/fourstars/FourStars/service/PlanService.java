@@ -1,5 +1,11 @@
 package com.fourstars.FourStars.service;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,10 +16,12 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Plan;
+import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.request.plan.PlanRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.plan.PlanResponseDTO;
@@ -22,6 +30,8 @@ import com.fourstars.FourStars.repository.SubscriptionRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 @CacheConfig(cacheNames = "plans")
@@ -140,11 +150,53 @@ public class PlanService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<PlanResponseDTO> fetchAll(Pageable pageable) {
+    public ResultPaginationDTO<PlanResponseDTO> fetchAll(Pageable pageable, String name, BigDecimal minPrice,
+            BigDecimal maxPrice, Integer minDurationInDays, Integer maxDurationInDays, Boolean active,
+            LocalDate startCreatedAt, LocalDate endCreatedAt) {
         logger.debug("Request to fetch all plans, page: {}, size: {}", pageable.getPageNumber(),
                 pageable.getPageSize());
 
-        Page<Plan> pagePlan = this.planRepository.findAll(pageable);
+        Specification<Plan> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (name != null && !name.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")),
+                        "%" + name.trim().toLowerCase() + "%"));
+            }
+
+            if (minPrice != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("price"), minPrice));
+            }
+
+            if (maxPrice != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("price"), maxPrice));
+            }
+
+            if (minDurationInDays != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("durationInDays"), minDurationInDays));
+            }
+
+            if (maxDurationInDays != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("durationInDays"), maxDurationInDays));
+            }
+
+            if (active != null) {
+                predicates.add(criteriaBuilder.equal(root.get("active"), active));
+            }
+
+            if (startCreatedAt != null) {
+                Instant startInstant = startCreatedAt.atStartOfDay(ZoneOffset.UTC).toInstant();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startInstant));
+            }
+
+            if (endCreatedAt != null) {
+                Instant endInstant = endCreatedAt.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endInstant));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Plan> pagePlan = this.planRepository.findAll(spec, pageable);
 
         List<PlanResponseDTO> planDTOs = pagePlan.getContent().stream()
                 .map(this::convertToPlanResponseDTO)
