@@ -1,5 +1,10 @@
 package com.fourstars.FourStars.service;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,6 +15,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +28,8 @@ import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 @CacheConfig(cacheNames = "badges")
@@ -131,11 +139,32 @@ public class BadgeService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<BadgeResponseDTO> fetchAllBadges(Pageable pageable) {
+    public ResultPaginationDTO<BadgeResponseDTO> fetchAllBadges(Pageable pageable, String name,
+            LocalDate startCreatedAt, LocalDate endCreatedAt) {
         logger.debug("Request to fetch all badges, page: {}, size: {}", pageable.getPageNumber(),
                 pageable.getPageSize());
 
-        Page<Badge> pageBadge = badgeRepository.findAll(pageable);
+        Specification<Badge> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (name != null && !name.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")),
+                        "%" + name.trim().toLowerCase() + "%"));
+            }
+
+            if (startCreatedAt != null) {
+                Instant startInstant = startCreatedAt.atStartOfDay(ZoneOffset.UTC).toInstant();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startInstant));
+            }
+
+            if (endCreatedAt != null) {
+                Instant endInstant = endCreatedAt.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endInstant));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Badge> pageBadge = badgeRepository.findAll(spec, pageable);
         List<BadgeResponseDTO> badgeDTOs = pageBadge.getContent().stream()
                 .map(this::convertToBadgeResponseDTO)
                 .collect(Collectors.toList());
