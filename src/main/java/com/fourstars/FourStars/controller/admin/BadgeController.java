@@ -106,7 +106,7 @@ public class BadgeController {
     @Operation(summary = "Get all badges with pagination")
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @ApiMessage("Fetch all badges with pagination")
+    @ApiMessage("Fetch All badges with pagination")
     public ResponseEntity<ResultPaginationDTO<BadgeResponseDTO>> getAllBadges(
             Pageable pageable,
             @RequestParam(name = "name", required = false) String name,
