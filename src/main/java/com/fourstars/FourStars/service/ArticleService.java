@@ -1,5 +1,9 @@
 package com.fourstars.FourStars.service;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fourstars.FourStars.domain.Article;
+import com.fourstars.FourStars.domain.Badge;
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.request.article.ArticleRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
@@ -158,7 +163,8 @@ public class ArticleService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<ArticleResponseDTO> fetchAllArticles(Pageable pageable, Long categoryId, String title) {
+    public ResultPaginationDTO<ArticleResponseDTO> fetchAllArticles(Pageable pageable, Long categoryId, String title,
+            LocalDate startCreatedAt, LocalDate endCreatedAt) {
         logger.debug("Request to fetch all articles with categoryId: {} and title: {}", categoryId, title);
 
         Specification<Article> spec = (root, query, criteriaBuilder) -> {
@@ -169,6 +175,14 @@ public class ArticleService {
             if (title != null && !title.trim().isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("title")),
                         "%" + title.trim().toLowerCase() + "%"));
+            }
+            if (startCreatedAt != null) {
+                Instant startInstant = startCreatedAt.atStartOfDay(ZoneOffset.UTC).toInstant();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startInstant));
+            }
+            if (endCreatedAt != null) {
+                Instant endInstant = endCreatedAt.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endInstant));
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };

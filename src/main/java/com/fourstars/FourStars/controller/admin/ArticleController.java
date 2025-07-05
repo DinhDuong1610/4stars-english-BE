@@ -1,6 +1,9 @@
 package com.fourstars.FourStars.controller.admin;
 
+import java.time.LocalDate;
+
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -110,8 +113,11 @@ public class ArticleController {
     public ResponseEntity<ResultPaginationDTO<ArticleResponseDTO>> getAllArticles(
             Pageable pageable,
             @RequestParam(name = "categoryId", required = false) Long categoryId,
-            @RequestParam(name = "title", required = false) String title) {
-        ResultPaginationDTO<ArticleResponseDTO> result = articleService.fetchAllArticles(pageable, categoryId, title);
+            @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "startCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startCreatedAt,
+            @RequestParam(name = "endCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endCreatedAt) {
+        ResultPaginationDTO<ArticleResponseDTO> result = articleService.fetchAllArticles(pageable, categoryId, title,
+                startCreatedAt, endCreatedAt);
         return ResponseEntity.ok(result);
     }
 }
