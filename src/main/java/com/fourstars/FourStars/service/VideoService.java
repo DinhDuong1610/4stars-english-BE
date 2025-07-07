@@ -1,6 +1,11 @@
 package com.fourstars.FourStars.service;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -198,7 +203,8 @@ public class VideoService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<VideoResponseDTO> fetchAllVideos(Pageable pageable, Long categoryId, String title) {
+    public ResultPaginationDTO<VideoResponseDTO> fetchAllVideos(Pageable pageable, Long categoryId, String title,
+            LocalDate startCreatedAt, LocalDate endCreatedAt) {
         logger.debug("Request to fetch all videos with categoryId: {} and title: {}", categoryId, title);
 
         Specification<Video> spec = (root, query, criteriaBuilder) -> {
@@ -210,6 +216,15 @@ public class VideoService {
             if (title != null && !title.trim().isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("title")),
                         "%" + title.trim().toLowerCase() + "%"));
+            }
+            if (startCreatedAt != null) {
+                Instant startInstant = startCreatedAt.atStartOfDay(ZoneOffset.UTC).toInstant();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startInstant));
+            }
+
+            if (endCreatedAt != null) {
+                Instant endInstant = endCreatedAt.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endInstant));
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
