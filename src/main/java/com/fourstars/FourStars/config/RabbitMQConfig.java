@@ -11,6 +11,9 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
+    public static final String USER_ACTIVITY_EXCHANGE = "user_activity_exchange";
+    public static final String USER_ACTIVITY_QUEUE = "q.user_activity";
+    public static final String USER_ACTIVITY_ROUTING_KEY = "user.activity.#";
 
     public static final String NOTIFICATION_EXCHANGE = "notification_exchange";
     public static final String NOTIFICATION_QUEUE = "q.notification";
@@ -19,6 +22,21 @@ public class RabbitMQConfig {
     public static final String QUIZ_SCORING_EXCHANGE = "quiz_scoring_exchange";
     public static final String QUIZ_SCORING_QUEUE = "q.quiz_scoring";
     public static final String QUIZ_SCORING_ROUTING_KEY = "quiz.submission";
+
+    @Bean
+    public TopicExchange userActivityExchange() {
+        return new TopicExchange(USER_ACTIVITY_EXCHANGE);
+    }
+
+    @Bean
+    public Queue userActivityQueue() {
+        return new Queue(USER_ACTIVITY_QUEUE, true);
+    }
+
+    @Bean
+    public Binding userActivityBinding() {
+        return BindingBuilder.bind(userActivityQueue()).to(userActivityExchange()).with(USER_ACTIVITY_ROUTING_KEY);
+    }
 
     @Bean
     public TopicExchange notificationExchange() {
