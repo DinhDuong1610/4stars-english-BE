@@ -1,17 +1,25 @@
 package com.fourstars.FourStars.service;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.Video;
 import com.fourstars.FourStars.domain.request.video.VideoRequestDTO;
@@ -30,12 +38,20 @@ import jakarta.persistence.criteria.Predicate;
 public class VideoService {
     private static final Logger logger = LoggerFactory.getLogger(VideoService.class);
 
+    @Value("${google.api.key}")
+    private String apiKey;
+
     private final VideoRepository videoRepository;
     private final CategoryRepository categoryRepository;
+
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     public VideoService(VideoRepository videoRepository, CategoryRepository categoryRepository) {
         this.videoRepository = videoRepository;
         this.categoryRepository = categoryRepository;
+        this.restTemplate = new RestTemplate();
+        this.objectMapper = new ObjectMapper();
     }
 
     private VideoResponseDTO convertToVideoResponseDTO(Video video) {
@@ -85,9 +101,24 @@ public class VideoService {
         video.setTitle(requestDTO.getTitle());
         video.setUrl(requestDTO.getUrl());
         video.setDescription(requestDTO.getDescription());
-        video.setDuration(requestDTO.getDuration());
         video.setSubtitle(requestDTO.getSubtitle());
         video.setCategory(category);
+
+        String videoUrl = requestDTO.getUrl();
+        if (videoUrl != null && (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be"))) {
+            try {
+                String videoId = extractVideoIdFromUrl(videoUrl);
+                if (videoId != null) {
+                    String duration = getYouTubeVideoDuration(videoId);
+                    video.setDuration(duration);
+                    logger.info("Successfully fetched duration for YouTube video {}: {}", videoId, duration);
+                }
+            } catch (Exception e) {
+                logger.error("Failed to fetch duration for YouTube URL: {}. Saving without duration.", videoUrl, e);
+            }
+        } else {
+            video.setDuration(requestDTO.getDuration());
+        }
 
         Video savedVideo = videoRepository.save(video);
         logger.info("Successfully created new video with ID: {}", savedVideo.getId());
@@ -118,9 +149,26 @@ public class VideoService {
         videoDB.setTitle(requestDTO.getTitle());
         videoDB.setUrl(requestDTO.getUrl());
         videoDB.setDescription(requestDTO.getDescription());
-        videoDB.setDuration(requestDTO.getDuration());
         videoDB.setSubtitle(requestDTO.getSubtitle());
         videoDB.setCategory(category);
+
+        String videoUrl = requestDTO.getUrl();
+        if (videoUrl != null && (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be"))) {
+            try {
+                String videoId = extractVideoIdFromUrl(videoUrl);
+                if (videoId != null) {
+                    String duration = getYouTubeVideoDuration(videoId);
+                    videoDB.setDuration(duration);
+                    logger.info("Automatically updated duration for YouTube video {}: {}", videoId, duration);
+                }
+            } catch (Exception e) {
+                logger.error("Failed to fetch duration for YouTube URL during update: {}. Duration might be outdated.",
+                        videoUrl, e);
+                videoDB.setDuration(requestDTO.getDuration());
+            }
+        } else {
+            videoDB.setDuration(requestDTO.getDuration());
+        }
 
         Video updatedVideo = videoRepository.save(videoDB);
         logger.info("Successfully updated video with ID: {}", updatedVideo.getId());
@@ -177,5 +225,49 @@ public class VideoService {
                 pageVideo.getTotalPages(),
                 pageVideo.getTotalElements());
         return new ResultPaginationDTO<>(meta, videoDTOs);
+    }
+
+    private String getYouTubeVideoDuration(String videoId) throws Exception {
+        String apiUrl = String.format(
+                "https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=%s&key=%s",
+                videoId, apiKey);
+
+        logger.debug("Calling YouTube API: {}", apiUrl);
+
+        String jsonResponse = restTemplate.getForObject(apiUrl, String.class);
+        if (jsonResponse == null) {
+            logger.warn("Received null response from YouTube API for video ID: {}", videoId);
+            return null;
+        }
+
+        JsonNode root = objectMapper.readTree(jsonResponse);
+        JsonNode items = root.path("items");
+
+        if (items.isArray() && !items.isEmpty()) {
+            String isoDuration = items.get(0).path("contentDetails").path("duration").asText(null);
+            if (isoDuration != null) {
+                return formatDuration(isoDuration);
+            }
+        }
+
+        logger.warn("Could not find duration in YouTube API response for video ID: {}", videoId);
+        return null;
+    }
+
+    private String extractVideoIdFromUrl(String url) {
+        String pattern = "(?<=watch\\?v=|/videos/|embed\\/|youtu.be\\/|\\/v\\/|\\/e\\/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed%2Fvideos%2F|youtu.be%2F|\\/v%2F)[^#\\&\\?\\n]*";
+        Pattern compiledPattern = Pattern.compile(pattern);
+        Matcher matcher = compiledPattern.matcher(url);
+        if (matcher.find()) {
+            return matcher.group();
+        }
+        return null;
+    }
+
+    private String formatDuration(String isoDuration) {
+        long seconds = Duration.parse(isoDuration).getSeconds();
+        long minutes = seconds / 60;
+        long remainingSeconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, remainingSeconds);
     }
 }
