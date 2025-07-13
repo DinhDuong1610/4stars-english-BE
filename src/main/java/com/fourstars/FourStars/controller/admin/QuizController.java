@@ -113,7 +113,8 @@ public class QuizController {
     @ApiMessage("Generate a comprehensive quiz")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<QuizDTO> generateComprehensiveQuiz(@RequestParam Long categoryId) {
-        QuizDTO createdQuiz = quizGenerationService.generateComprehensiveQuizForCategory(categoryId);
+        QuizDTO generatedQuizData = quizGenerationService.generateComprehensiveQuizForCategory(categoryId);
+        QuizDTO createdQuiz = quizService.createQuiz(generatedQuizData);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdQuiz);
     }
 }

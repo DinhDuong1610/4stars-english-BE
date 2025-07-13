@@ -13,4 +13,6 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
     Page<Quiz> findByCategoryId(Long categoryId, Pageable pageable);
 
     Page<Quiz> findAll(Specification<Quiz> spec, Pageable pageable);
+
+    boolean existsByCategoryId(Long categoryId);
 }

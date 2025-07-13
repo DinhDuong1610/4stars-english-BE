@@ -1,6 +1,8 @@
 package com.fourstars.FourStars.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
 import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.key.UserVocabularyId;
+import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
@@ -51,18 +54,24 @@ public class VocabularyService {
     private final UserRepository userRepository;
     private final SM2Service sm2Service;
     private final RabbitTemplate rabbitTemplate;
+    private final QuizGenerationService quizGenerationService;
+    private final QuizService quizService;
 
     public VocabularyService(VocabularyRepository vocabularyRepository,
             CategoryRepository categoryRepository,
             UserVocabularyRepository userVocabularyRepository,
             UserRepository userRepository,
-            SM2Service sm2Service, RabbitTemplate rabbitTemplate) {
+            SM2Service sm2Service, RabbitTemplate rabbitTemplate,
+            QuizGenerationService quizGenerationService,
+            QuizService quizService) {
         this.vocabularyRepository = vocabularyRepository;
         this.categoryRepository = categoryRepository;
         this.userVocabularyRepository = userVocabularyRepository;
         this.userRepository = userRepository;
         this.sm2Service = sm2Service;
         this.rabbitTemplate = rabbitTemplate;
+        this.quizGenerationService = quizGenerationService;
+        this.quizService = quizService;
     }
 
     private VocabularyResponseDTO convertToVocabularyResponseDTO(Vocabulary vocab) {
@@ -263,6 +272,33 @@ public class VocabularyService {
         return vocabularies.stream()
                 .map(this::convertToVocabularyResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public QuizDTO createReviewQuiz() {
+        User user = getCurrentAuthenticatedUser();
+        logger.info("User '{}' requested a review quiz.", user.getEmail());
+
+        List<Vocabulary> vocabulariesToReview = vocabularyRepository.findVocabulariesForReview(user.getId(),
+                Instant.now(), PageRequest.of(0, 1000));
+
+        if (vocabulariesToReview.isEmpty()) {
+            logger.info("User '{}' has no vocabularies to review at the moment.", user.getEmail());
+            return null;
+        }
+
+        logger.info("Found {} vocabularies to generate a review quiz for user '{}'", vocabulariesToReview.size(),
+                user.getEmail());
+
+        String title = "Bài ôn tập cá nhân ngày " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        String description = "Bài quiz được tạo tự động dựa trên các từ vựng bạn cần ôn tập.";
+
+        QuizDTO generatedQuizData = quizGenerationService.generateQuizFromVocabularyList(vocabulariesToReview, title,
+                description, null, 1);
+
+        QuizDTO createdQuiz = quizService.createQuiz(generatedQuizData);
+
+        return createdQuiz;
     }
 
     private User getCurrentAuthenticatedUser() {

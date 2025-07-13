@@ -32,13 +32,11 @@ public class QuizGenerationService {
     private static final Logger logger = LoggerFactory.getLogger(QuizGenerationService.class);
 
     private final VocabularyRepository vocabularyRepository;
-    private final QuizService quizService;
     private final CategoryRepository categoryRepository;
 
-    public QuizGenerationService(VocabularyRepository vocabularyRepository, QuizService quizService,
+    public QuizGenerationService(VocabularyRepository vocabularyRepository,
             CategoryRepository categoryRepository) {
         this.vocabularyRepository = vocabularyRepository;
-        this.quizService = quizService;
         this.categoryRepository = categoryRepository;
     }
 
@@ -71,7 +69,7 @@ public class QuizGenerationService {
             }
 
             quizDTO.setQuestions(questions);
-            quizService.createQuiz(quizDTO);
+            // quizService.createQuiz(quizDTO);
 
             logger.info("Successfully generated and saved a new quiz for vocabulary ID: {}", newVocabId);
         } catch (Exception e) {
@@ -171,10 +169,9 @@ public class QuizGenerationService {
         return Optional.of(q);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public QuizDTO generateComprehensiveQuizForCategory(Long categoryId) {
         logger.info("Request to generate comprehensive quiz for category ID: {}", categoryId);
-
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
 
@@ -184,7 +181,21 @@ public class QuizGenerationService {
                     "No vocabularies found in category '" + category.getName() + "' to generate a quiz.");
         }
 
+        String title = "Bài ôn tập tổng hợp: " + category.getName();
+        String description = "Bài quiz được tạo tự động bao gồm các từ vựng trong chủ đề " + category.getName();
+
+        return generateQuizFromVocabularyList(vocabularies, title, description, categoryId, 2);
+    }
+
+    @Transactional
+    public QuizDTO generateQuizFromVocabularyList(List<Vocabulary> vocabularies, String title, String description,
+            Long categoryId, int numberOfQuestions) {
+        if (vocabularies == null || vocabularies.isEmpty()) {
+            throw new BadRequestException("Vocabulary list cannot be empty to generate a quiz.");
+        }
+
         Set<QuestionDTO> questions = new HashSet<>();
+        logger.info("Generating one random question for each of the {} vocabularies.", vocabularies.size());
 
         for (Vocabulary vocab : vocabularies) {
             List<Optional<QuestionDTO>> questionFactories = new ArrayList<>();
@@ -195,27 +206,29 @@ public class QuizGenerationService {
 
             Collections.shuffle(questionFactories);
 
+            int count = numberOfQuestions;
+
             for (Optional<QuestionDTO> questionOpt : questionFactories) {
                 if (questionOpt.isPresent()) {
                     questions.add(questionOpt.get());
+                    count--;
+                    if (count == 0) {
+                        break;
+                    }
                 }
             }
         }
 
         if (questions.isEmpty()) {
-            throw new BadRequestException(
-                    "Could not generate any valid questions for the vocabularies in this category.");
+            throw new BadRequestException("Could not generate any valid questions for the provided vocabularies.");
         }
 
-        QuizDTO comprehensiveQuiz = new QuizDTO();
-        comprehensiveQuiz.setTitle("Bài ôn tập tổng hợp: " + category.getName());
-        comprehensiveQuiz
-                .setDescription("Bài quiz được tạo tự động bao gồm các từ vựng trong chủ đề " + category.getName());
-        comprehensiveQuiz.setCategoryId(categoryId);
-        comprehensiveQuiz.setQuestions(questions);
+        QuizDTO quizDTO = new QuizDTO();
+        quizDTO.setTitle(title);
+        quizDTO.setDescription(description);
+        quizDTO.setCategoryId(categoryId);
+        quizDTO.setQuestions(questions);
 
-        logger.info("Generated a comprehensive quiz with {} questions for category '{}'", questions.size(),
-                category.getName());
-        return quizService.createQuiz(comprehensiveQuiz);
+        return quizDTO;
     }
 }
