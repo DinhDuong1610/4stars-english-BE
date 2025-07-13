@@ -3,6 +3,7 @@ package com.fourstars.FourStars.service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -329,4 +330,61 @@ public class VocabularyService {
 
         return convertToUserVocabularyResponseDTO(savedEntry);
     }
+
+    @Transactional
+    public List<VocabularyResponseDTO> createBulkVocabularies(List<VocabularyRequestDTO> requestDTOs)
+            throws DuplicateResourceException {
+        logger.info("Admin request to create {} vocabularies in bulk", requestDTOs.size());
+
+        if (requestDTOs == null || requestDTOs.isEmpty()) {
+            throw new BadRequestException("Vocabulary list cannot be empty.");
+        }
+
+        List<Long> categoryIds = requestDTOs.stream()
+                .map(VocabularyRequestDTO::getCategoryId)
+                .collect(Collectors.toList());
+        Map<Long, Category> categoryMap = categoryRepository.findAllById(categoryIds).stream()
+                .collect(Collectors.toMap(Category::getId, category -> category));
+
+        List<Vocabulary> vocabulariesToSave = new ArrayList<>();
+
+        for (VocabularyRequestDTO dto : requestDTOs) {
+            if (vocabularyRepository.existsByWordAndCategoryId(dto.getWord(), dto.getCategoryId())) {
+                throw new DuplicateResourceException(
+                        "Vocabulary with word '" + dto.getWord() + "' already exists in category ID "
+                                + dto.getCategoryId());
+            }
+
+            Category category = categoryMap.get(dto.getCategoryId());
+            if (category == null) {
+                throw new ResourceNotFoundException("Category not found with id: " + dto.getCategoryId());
+            }
+            if (category.getType() != CategoryType.VOCABULARY) {
+                throw new BadRequestException(
+                        "The selected category " + category.getName() + " is not of type 'VOCABULARY'.");
+            }
+
+            Vocabulary vocab = new Vocabulary();
+            vocab.setWord(dto.getWord());
+            vocab.setDefinitionEn(dto.getDefinitionEn());
+            vocab.setMeaningVi(dto.getMeaningVi());
+            vocab.setExampleEn(dto.getExampleEn());
+            vocab.setExampleVi(dto.getExampleVi());
+            vocab.setPartOfSpeech(dto.getPartOfSpeech());
+            vocab.setPronunciation(dto.getPronunciation());
+            vocab.setImage(dto.getImage());
+            vocab.setAudio(dto.getAudio());
+            vocab.setCategory(category);
+
+            vocabulariesToSave.add(vocab);
+        }
+
+        List<Vocabulary> savedVocabularies = vocabularyRepository.saveAll(vocabulariesToSave);
+        logger.info("Successfully created {} new vocabularies in bulk.", savedVocabularies.size());
+
+        return savedVocabularies.stream()
+                .map(this::convertToVocabularyResponseDTO)
+                .collect(Collectors.toList());
+    }
+
 }
