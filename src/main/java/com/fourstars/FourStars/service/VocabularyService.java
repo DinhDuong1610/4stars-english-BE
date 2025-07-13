@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
@@ -26,6 +28,7 @@ import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.UserVocabularyResponseDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
+import com.fourstars.FourStars.messaging.dto.vocabulary.NewVocabularyMessage;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
@@ -47,17 +50,19 @@ public class VocabularyService {
     private final UserVocabularyRepository userVocabularyRepository;
     private final UserRepository userRepository;
     private final SM2Service sm2Service;
+    private final RabbitTemplate rabbitTemplate;
 
     public VocabularyService(VocabularyRepository vocabularyRepository,
             CategoryRepository categoryRepository,
             UserVocabularyRepository userVocabularyRepository,
             UserRepository userRepository,
-            SM2Service sm2Service) {
+            SM2Service sm2Service, RabbitTemplate rabbitTemplate) {
         this.vocabularyRepository = vocabularyRepository;
         this.categoryRepository = categoryRepository;
         this.userVocabularyRepository = userVocabularyRepository;
         this.userRepository = userRepository;
         this.sm2Service = sm2Service;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     private VocabularyResponseDTO convertToVocabularyResponseDTO(Vocabulary vocab) {
@@ -137,6 +142,17 @@ public class VocabularyService {
 
         Vocabulary savedVocab = vocabularyRepository.save(vocab);
         logger.info("Successfully created new vocabulary with ID: {}", savedVocab.getId());
+
+        try {
+            NewVocabularyMessage message = new NewVocabularyMessage(savedVocab.getId());
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.VOCABULARY_EVENT_EXCHANGE,
+                    RabbitMQConfig.VOCABULARY_CREATED_ROUTING_KEY,
+                    message);
+            logger.info("Published new vocabulary event for ID: {}", savedVocab.getId());
+        } catch (Exception e) {
+            logger.error("Failed to publish new vocabulary event for ID: {}", savedVocab.getId(), e);
+        }
 
         return convertToVocabularyResponseDTO(savedVocab);
     }
@@ -381,6 +397,20 @@ public class VocabularyService {
 
         List<Vocabulary> savedVocabularies = vocabularyRepository.saveAll(vocabulariesToSave);
         logger.info("Successfully created {} new vocabularies in bulk.", savedVocabularies.size());
+
+        logger.info("Publishing events for bulk-created vocabularies...");
+        for (Vocabulary savedVocab : savedVocabularies) {
+            try {
+                NewVocabularyMessage message = new NewVocabularyMessage(savedVocab.getId());
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.VOCABULARY_EVENT_EXCHANGE,
+                        RabbitMQConfig.VOCABULARY_CREATED_ROUTING_KEY,
+                        message);
+            } catch (Exception e) {
+                logger.error("Failed to publish new vocabulary event for bulk-created ID: {}", savedVocab.getId(), e);
+            }
+        }
+        logger.info("Finished publishing {} events.", savedVocabularies.size());
 
         return savedVocabularies.stream()
                 .map(this::convertToVocabularyResponseDTO)
