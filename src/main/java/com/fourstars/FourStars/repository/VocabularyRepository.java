@@ -45,6 +45,7 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long>, J
                         "ORDER BY RAND() LIMIT 3", nativeQuery = true)
         List<Vocabulary> findRandomWords(
                         @Param("excludeId") Long excludeId,
+                        @Param("excludeWord") String excludeWord,
                         @Param("pos") String partOfSpeech);
 
 }

@@ -97,7 +97,8 @@ public class QuizGenerationService {
         if (vocab.getExampleEn() == null || vocab.getExampleEn().isEmpty()) {
             return Optional.empty();
         }
-        List<Vocabulary> distractors = vocabularyRepository.findRandomWords(vocab.getId(), vocab.getPartOfSpeech());
+        List<Vocabulary> distractors = vocabularyRepository.findRandomWords(vocab.getId(), vocab.getWord(),
+                vocab.getPartOfSpeech());
         if (distractors.size() < 3) {
             return Optional.empty();
         }
@@ -125,7 +126,8 @@ public class QuizGenerationService {
             return Optional.empty();
         }
 
-        List<Vocabulary> distractors = vocabularyRepository.findRandomWords(vocab.getId(), vocab.getPartOfSpeech());
+        List<Vocabulary> distractors = vocabularyRepository.findRandomWords(vocab.getId(), vocab.getWord(),
+                vocab.getPartOfSpeech());
         if (distractors.size() < 3) {
             return Optional.empty();
         }
@@ -149,7 +151,8 @@ public class QuizGenerationService {
             return Optional.empty();
         }
 
-        List<Vocabulary> distractors = vocabularyRepository.findRandomWords(vocab.getId(), vocab.getPartOfSpeech());
+        List<Vocabulary> distractors = vocabularyRepository.findRandomWords(vocab.getId(), vocab.getWord(),
+                vocab.getPartOfSpeech());
         if (distractors.size() < 3) {
             return Optional.empty();
         }
