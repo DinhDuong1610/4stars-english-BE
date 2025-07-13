@@ -1,19 +1,26 @@
 package com.fourstars.FourStars.service;
 
 import com.fourstars.FourStars.config.RabbitMQConfig;
+import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.quiz.QuestionChoiceDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuestionDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.messaging.dto.vocabulary.NewVocabularyMessage;
+import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.VocabularyRepository;
 import com.fourstars.FourStars.util.constant.QuestionType;
+import com.fourstars.FourStars.util.error.BadRequestException;
+import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -26,13 +33,16 @@ public class QuizGenerationService {
 
     private final VocabularyRepository vocabularyRepository;
     private final QuizService quizService;
+    private final CategoryRepository categoryRepository;
 
-    public QuizGenerationService(VocabularyRepository vocabularyRepository, QuizService quizService) {
+    public QuizGenerationService(VocabularyRepository vocabularyRepository, QuizService quizService,
+            CategoryRepository categoryRepository) {
         this.vocabularyRepository = vocabularyRepository;
         this.quizService = quizService;
+        this.categoryRepository = categoryRepository;
     }
 
-    @RabbitListener(queues = RabbitMQConfig.VOCABULARY_CREATED_QUEUE)
+    // @RabbitListener(queues = RabbitMQConfig.VOCABULARY_CREATED_QUEUE)
     @Transactional
     public void generateQuizForVocabulary(NewVocabularyMessage message) {
         long newVocabId = message.getNewVocabularyId();
@@ -60,10 +70,6 @@ public class QuizGenerationService {
                 return;
             }
 
-            for (QuestionDTO q : questions) {
-                q.setRelatedVocabularyId(newVocab.getId());
-            }
-
             quizDTO.setQuestions(questions);
             quizService.createQuiz(quizDTO);
 
@@ -85,6 +91,7 @@ public class QuizGenerationService {
         q.setCorrectSentence(vocab.getWord());
         q.setQuestionType(QuestionType.FILL_IN_BLANK);
         q.setPoints(10);
+        q.setRelatedVocabularyId(vocab.getId());
         return Optional.of(q);
     }
 
@@ -104,6 +111,7 @@ public class QuizGenerationService {
         q.setPrompt(prompt);
         q.setQuestionType(QuestionType.MULTIPLE_CHOICE_TEXT);
         q.setPoints(10);
+        q.setRelatedVocabularyId(vocab.getId());
 
         Set<QuestionChoiceDTO> choices = new HashSet<>();
         choices.add(new QuestionChoiceDTO(0, vocab.getWord(), null, true));
@@ -128,6 +136,7 @@ public class QuizGenerationService {
         q.setPrompt("Which image best represents the definition: \"" + vocab.getDefinitionEn() + "\"?");
         q.setQuestionType(QuestionType.MULTIPLE_CHOICE_IMAGE);
         q.setPoints(10);
+        q.setRelatedVocabularyId(vocab.getId());
 
         Set<QuestionChoiceDTO> choices = new HashSet<>();
         choices.add(new QuestionChoiceDTO(0, null, vocab.getImage(), true));
@@ -152,6 +161,7 @@ public class QuizGenerationService {
         q.setAudioUrl(vocab.getAudio());
         q.setQuestionType(QuestionType.LISTENING_COMPREHENSION);
         q.setPoints(10);
+        q.setRelatedVocabularyId(vocab.getId());
 
         Set<QuestionChoiceDTO> choices = new HashSet<>();
         choices.add(new QuestionChoiceDTO(0, vocab.getWord(), null, true));
@@ -159,5 +169,53 @@ public class QuizGenerationService {
 
         q.setChoices(choices);
         return Optional.of(q);
+    }
+
+    @Transactional
+    public QuizDTO generateComprehensiveQuizForCategory(Long categoryId) {
+        logger.info("Request to generate comprehensive quiz for category ID: {}", categoryId);
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+
+        List<Vocabulary> vocabularies = vocabularyRepository.findByCategoryId(categoryId);
+        if (vocabularies.isEmpty()) {
+            throw new BadRequestException(
+                    "No vocabularies found in category '" + category.getName() + "' to generate a quiz.");
+        }
+
+        Set<QuestionDTO> questions = new HashSet<>();
+
+        for (Vocabulary vocab : vocabularies) {
+            List<Optional<QuestionDTO>> questionFactories = new ArrayList<>();
+            questionFactories.add(generateFillInTheBlank(vocab));
+            questionFactories.add(generateMultipleChoiceText(vocab));
+            questionFactories.add(generateMultipleChoiceImage(vocab));
+            questionFactories.add(generateListeningComprehension(vocab));
+
+            Collections.shuffle(questionFactories);
+
+            for (Optional<QuestionDTO> questionOpt : questionFactories) {
+                if (questionOpt.isPresent()) {
+                    questions.add(questionOpt.get());
+                }
+            }
+        }
+
+        if (questions.isEmpty()) {
+            throw new BadRequestException(
+                    "Could not generate any valid questions for the vocabularies in this category.");
+        }
+
+        QuizDTO comprehensiveQuiz = new QuizDTO();
+        comprehensiveQuiz.setTitle("Bài ôn tập tổng hợp: " + category.getName());
+        comprehensiveQuiz
+                .setDescription("Bài quiz được tạo tự động bao gồm các từ vựng trong chủ đề " + category.getName());
+        comprehensiveQuiz.setCategoryId(categoryId);
+        comprehensiveQuiz.setQuestions(questions);
+
+        logger.info("Generated a comprehensive quiz with {} questions for category '{}'", questions.size(),
+                category.getName());
+        return quizService.createQuiz(comprehensiveQuiz);
     }
 }

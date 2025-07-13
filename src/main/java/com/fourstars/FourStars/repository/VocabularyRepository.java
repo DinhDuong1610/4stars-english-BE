@@ -23,6 +23,8 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long>, J
 
         boolean existsByCategoryId(Long categoryId);
 
+        List<Vocabulary> findByCategoryId(Long categoryId);
+
         @Override
         @EntityGraph(attributePaths = { "category" })
         Page<Vocabulary> findAll(Specification<Vocabulary> spec, Pageable pageable);

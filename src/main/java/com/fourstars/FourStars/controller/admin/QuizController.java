@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
+import com.fourstars.FourStars.service.QuizGenerationService;
 import com.fourstars.FourStars.service.QuizService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
@@ -32,9 +33,11 @@ import jakarta.validation.Valid;
 public class QuizController {
 
     private final QuizService quizService;
+    private final QuizGenerationService quizGenerationService;
 
-    public QuizController(QuizService quizService) {
+    public QuizController(QuizService quizService, QuizGenerationService quizGenerationService) {
         this.quizService = quizService;
+        this.quizGenerationService = quizGenerationService;
     }
 
     @Operation(summary = "Create a new quiz", description = "Creates a new quiz with a full set of questions and choices.")
@@ -98,5 +101,19 @@ public class QuizController {
             @RequestParam(name = "categoryId", required = false) Long categoryId) {
 
         return ResponseEntity.ok(quizService.getAllQuizzesForAdmin(pageable, categoryId));
+    }
+
+    @Operation(summary = "Generate a comprehensive quiz from a category", description = "Creates a new quiz containing one random question for each vocabulary word in the specified category.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Comprehensive quiz created successfully"),
+            @ApiResponse(responseCode = "404", description = "Category not found"),
+            @ApiResponse(responseCode = "400", description = "No questions could be generated for this category")
+    })
+    @PostMapping("/generate-from-category")
+    @ApiMessage("Generate a comprehensive quiz")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<QuizDTO> generateComprehensiveQuiz(@RequestParam Long categoryId) {
+        QuizDTO createdQuiz = quizGenerationService.generateComprehensiveQuizForCategory(categoryId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdQuiz);
     }
 }
