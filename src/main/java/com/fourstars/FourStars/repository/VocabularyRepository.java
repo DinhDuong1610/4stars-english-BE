@@ -38,7 +38,11 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long>, J
                         @Param("now") Instant now,
                         Pageable pageable);
 
-        @Query(value = "SELECT * FROM vocabularies WHERE id != :excludeId AND part_of_speech = :pos ORDER BY RAND() LIMIT 3", nativeQuery = true)
+        @Query(value = "SELECT * FROM vocabularies " +
+                        "WHERE id != :excludeId " +
+                        "AND word != :excludeWord " +
+                        "AND part_of_speech = :pos " +
+                        "ORDER BY RAND() LIMIT 3", nativeQuery = true)
         List<Vocabulary> findRandomWords(
                         @Param("excludeId") Long excludeId,
                         @Param("pos") String partOfSpeech);
