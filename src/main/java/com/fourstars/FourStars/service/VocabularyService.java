@@ -290,8 +290,8 @@ public class VocabularyService {
         logger.info("Found {} vocabularies to generate a review quiz for user '{}'", vocabulariesToReview.size(),
                 user.getEmail());
 
-        String title = "Bài ôn tập cá nhân ngày " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-        String description = "Bài quiz được tạo tự động dựa trên các từ vựng bạn cần ôn tập.";
+        String title = "Personal Review for " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        String description = "This quiz is automatically generated based on words you need to review.";
 
         QuizDTO generatedQuizData = quizGenerationService.generateQuizFromVocabularyList(vocabulariesToReview, title,
                 description, null, 1);

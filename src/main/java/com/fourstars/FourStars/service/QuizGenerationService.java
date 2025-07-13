@@ -181,8 +181,8 @@ public class QuizGenerationService {
                     "No vocabularies found in category '" + category.getName() + "' to generate a quiz.");
         }
 
-        String title = "Bài ôn tập tổng hợp: " + category.getName();
-        String description = "Bài quiz được tạo tự động bao gồm các từ vựng trong chủ đề " + category.getName();
+        String title = "Review Quiz: " + category.getName();
+        String description = "This quiz includes all vocabulary for the '" + category.getName() + "' topic.";
 
         return generateQuizFromVocabularyList(vocabularies, title, description, categoryId, 2);
     }
