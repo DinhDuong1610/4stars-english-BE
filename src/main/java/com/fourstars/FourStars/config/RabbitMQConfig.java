@@ -23,6 +23,10 @@ public class RabbitMQConfig {
     public static final String QUIZ_SCORING_QUEUE = "q.quiz_scoring";
     public static final String QUIZ_SCORING_ROUTING_KEY = "quiz.submission";
 
+    public static final String VOCABULARY_EVENT_EXCHANGE = "vocabulary_event_exchange";
+    public static final String VOCABULARY_CREATED_QUEUE = "q.vocabulary.created";
+    public static final String VOCABULARY_CREATED_ROUTING_KEY = "vocabulary.created";
+
     @Bean
     public TopicExchange userActivityExchange() {
         return new TopicExchange(USER_ACTIVITY_EXCHANGE);
@@ -77,5 +81,23 @@ public class RabbitMQConfig {
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
+    public TopicExchange vocabularyEventExchange() {
+        return new TopicExchange(VOCABULARY_EVENT_EXCHANGE);
+    }
+
+    @Bean
+    public Queue vocabularyCreatedQueue() {
+        return new Queue(VOCABULARY_CREATED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding vocabularyCreatedBinding() {
+        return BindingBuilder
+                .bind(vocabularyCreatedQueue())
+                .to(vocabularyEventExchange())
+                .with(VOCABULARY_CREATED_ROUTING_KEY);
     }
 }

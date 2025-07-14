@@ -23,6 +23,8 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long>, J
 
         boolean existsByCategoryId(Long categoryId);
 
+        List<Vocabulary> findByCategoryId(Long categoryId);
+
         @Override
         @EntityGraph(attributePaths = { "category" })
         Page<Vocabulary> findAll(Specification<Vocabulary> spec, Pageable pageable);
@@ -35,5 +37,15 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long>, J
                         @Param("userId") Long userId,
                         @Param("now") Instant now,
                         Pageable pageable);
+
+        @Query(value = "SELECT * FROM vocabularies " +
+                        "WHERE id != :excludeId " +
+                        "AND word != :excludeWord " +
+                        "AND part_of_speech = :pos " +
+                        "ORDER BY RAND() LIMIT 3", nativeQuery = true)
+        List<Vocabulary> findRandomWords(
+                        @Param("excludeId") Long excludeId,
+                        @Param("excludeWord") String excludeWord,
+                        @Param("pos") String partOfSpeech);
 
 }

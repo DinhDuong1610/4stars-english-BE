@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.client;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.UserVocabulary;
+import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
-import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
 import com.fourstars.FourStars.service.VocabularyService;
@@ -25,6 +26,7 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -74,6 +76,26 @@ public class VocabularyController {
     public ResponseEntity<List<VocabularyResponseDTO>> getVocabulariesForReview() {
         List<VocabularyResponseDTO> result = vocabularyService.getVocabulariesForReview(1000);
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Generate a personalized review quiz", description = "Fetches words that are due for review for the current user and automatically creates a new quiz from them.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Review quiz created successfully and returned"),
+            @ApiResponse(responseCode = "200", description = "OK - No words to review at the moment (returns empty body)"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated")
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/review/generate-quiz")
+    @ApiMessage("Generate a personalized review quiz from due vocabularies")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<QuizDTO> generateReviewQuiz() {
+        QuizDTO reviewQuiz = vocabularyService.createReviewQuiz();
+
+        if (reviewQuiz == null) {
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(reviewQuiz);
     }
 
     @Operation(summary = "Submit a vocabulary review", description = "Submits the result of a vocabulary review. The 'quality' score (0-5) is used by the SM-2 algorithm to calculate the next review date.")

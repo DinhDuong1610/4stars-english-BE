@@ -1,6 +1,8 @@
 package com.fourstars.FourStars.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +11,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,16 +19,19 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.Category;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
 import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.key.UserVocabularyId;
+import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
 import com.fourstars.FourStars.domain.request.vocabulary.VocabularyRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.UserVocabularyResponseDTO;
 import com.fourstars.FourStars.domain.response.vocabulary.VocabularyResponseDTO;
+import com.fourstars.FourStars.messaging.dto.vocabulary.NewVocabularyMessage;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
@@ -47,17 +53,25 @@ public class VocabularyService {
     private final UserVocabularyRepository userVocabularyRepository;
     private final UserRepository userRepository;
     private final SM2Service sm2Service;
+    private final RabbitTemplate rabbitTemplate;
+    private final QuizGenerationService quizGenerationService;
+    private final QuizService quizService;
 
     public VocabularyService(VocabularyRepository vocabularyRepository,
             CategoryRepository categoryRepository,
             UserVocabularyRepository userVocabularyRepository,
             UserRepository userRepository,
-            SM2Service sm2Service) {
+            SM2Service sm2Service, RabbitTemplate rabbitTemplate,
+            QuizGenerationService quizGenerationService,
+            QuizService quizService) {
         this.vocabularyRepository = vocabularyRepository;
         this.categoryRepository = categoryRepository;
         this.userVocabularyRepository = userVocabularyRepository;
         this.userRepository = userRepository;
         this.sm2Service = sm2Service;
+        this.rabbitTemplate = rabbitTemplate;
+        this.quizGenerationService = quizGenerationService;
+        this.quizService = quizService;
     }
 
     private VocabularyResponseDTO convertToVocabularyResponseDTO(Vocabulary vocab) {
@@ -137,6 +151,17 @@ public class VocabularyService {
 
         Vocabulary savedVocab = vocabularyRepository.save(vocab);
         logger.info("Successfully created new vocabulary with ID: {}", savedVocab.getId());
+
+        try {
+            NewVocabularyMessage message = new NewVocabularyMessage(savedVocab.getId());
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.VOCABULARY_EVENT_EXCHANGE,
+                    RabbitMQConfig.VOCABULARY_CREATED_ROUTING_KEY,
+                    message);
+            logger.info("Published new vocabulary event for ID: {}", savedVocab.getId());
+        } catch (Exception e) {
+            logger.error("Failed to publish new vocabulary event for ID: {}", savedVocab.getId(), e);
+        }
 
         return convertToVocabularyResponseDTO(savedVocab);
     }
@@ -247,6 +272,33 @@ public class VocabularyService {
         return vocabularies.stream()
                 .map(this::convertToVocabularyResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public QuizDTO createReviewQuiz() {
+        User user = getCurrentAuthenticatedUser();
+        logger.info("User '{}' requested a review quiz.", user.getEmail());
+
+        List<Vocabulary> vocabulariesToReview = vocabularyRepository.findVocabulariesForReview(user.getId(),
+                Instant.now(), PageRequest.of(0, 1000));
+
+        if (vocabulariesToReview.isEmpty()) {
+            logger.info("User '{}' has no vocabularies to review at the moment.", user.getEmail());
+            return null;
+        }
+
+        logger.info("Found {} vocabularies to generate a review quiz for user '{}'", vocabulariesToReview.size(),
+                user.getEmail());
+
+        String title = "Personal Review for " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        String description = "This quiz is automatically generated based on words you need to review.";
+
+        QuizDTO generatedQuizData = quizGenerationService.generateQuizFromVocabularyList(vocabulariesToReview, title,
+                description, null, 1);
+
+        QuizDTO createdQuiz = quizService.createQuiz(generatedQuizData);
+
+        return createdQuiz;
     }
 
     private User getCurrentAuthenticatedUser() {
@@ -381,6 +433,20 @@ public class VocabularyService {
 
         List<Vocabulary> savedVocabularies = vocabularyRepository.saveAll(vocabulariesToSave);
         logger.info("Successfully created {} new vocabularies in bulk.", savedVocabularies.size());
+
+        logger.info("Publishing events for bulk-created vocabularies...");
+        for (Vocabulary savedVocab : savedVocabularies) {
+            try {
+                NewVocabularyMessage message = new NewVocabularyMessage(savedVocab.getId());
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.VOCABULARY_EVENT_EXCHANGE,
+                        RabbitMQConfig.VOCABULARY_CREATED_ROUTING_KEY,
+                        message);
+            } catch (Exception e) {
+                logger.error("Failed to publish new vocabulary event for bulk-created ID: {}", savedVocab.getId(), e);
+            }
+        }
+        logger.info("Finished publishing {} events.", savedVocabularies.size());
 
         return savedVocabularies.stream()
                 .map(this::convertToVocabularyResponseDTO)

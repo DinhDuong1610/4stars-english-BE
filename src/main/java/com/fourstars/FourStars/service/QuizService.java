@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -63,21 +65,26 @@ public class QuizService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
-    private final VocabularyService vocabularyService;
     private final RabbitTemplate rabbitTemplate;
+    private VocabularyService vocabularyService;
 
     public QuizService(QuizRepository quizRepository, QuestionRepository questionRepository,
             UserQuizAttemptRepository userQuizAttemptRepository, UserRepository userRepository,
             CategoryRepository categoryRepository, VocabularyRepository vocabularyRepository,
-            VocabularyService vocabularyService, RabbitTemplate rabbitTemplate) {
+            RabbitTemplate rabbitTemplate) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
         this.userQuizAttemptRepository = userQuizAttemptRepository;
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
         this.vocabularyRepository = vocabularyRepository;
-        this.vocabularyService = vocabularyService;
         this.rabbitTemplate = rabbitTemplate;
+    }
+
+    @Autowired
+    @Lazy
+    public void setVocabularyService(VocabularyService vocabularyService) {
+        this.vocabularyService = vocabularyService;
     }
 
     private User getCurrentAuthenticatedUser() {
@@ -90,9 +97,19 @@ public class QuizService {
     public QuizDTO createQuiz(QuizDTO quizDto) {
         logger.info("Admin creating a new quiz with title: '{}'", quizDto.getTitle());
 
-        Category category = categoryRepository.findById(quizDto.getCategoryId())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Category not found with id: " + quizDto.getCategoryId()));
+        Category category = null;
+
+        if (quizDto.getCategoryId() != null) {
+            category = categoryRepository.findById(quizDto.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Category not found with id: " + quizDto.getCategoryId()));
+
+            if (quizRepository.existsByCategoryId(category.getId())) {
+                logger.warn("Thất bại: Đã tồn tại một quiz cho Category ID: {}", category.getId());
+                throw new IllegalStateException(
+                        "Category '" + category.getName() + "' đã có một bài quiz. Không thể tạo thêm.");
+            }
+        }
 
         Quiz quiz = new Quiz();
         quiz.setTitle(quizDto.getTitle());
