@@ -1,6 +1,10 @@
 package com.fourstars.FourStars.domain.response.auth;
 
-import com.fourstars.FourStars.domain.Role; // Using FourStars Role
+import java.util.List;
+
+import com.fourstars.FourStars.domain.Permission;
+import com.fourstars.FourStars.domain.Role;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -29,7 +33,7 @@ public class ResLoginDTO {
             this.email = email;
             this.name = name;
             if (roleEntity != null) {
-                this.role = new RoleInfoDTO(roleEntity.getId(), roleEntity.getName());
+                this.role = new RoleInfoDTO(roleEntity.getId(), roleEntity.getName(), roleEntity.getPermissions());
             }
             this.streakCount = streakCount;
         }
@@ -52,5 +56,6 @@ public class ResLoginDTO {
     public static class RoleInfoDTO {
         private long id;
         private String name;
+        private List<Permission> permissions;
     }
 }
