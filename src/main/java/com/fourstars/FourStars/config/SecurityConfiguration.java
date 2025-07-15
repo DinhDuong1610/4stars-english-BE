@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -78,17 +77,13 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
+                                .requestMatchers("/actuator/**").hasAuthority("ROLE_ADMIN")
                                 .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
                                 .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2 // oauth2 ở đây là OAuth2ResourceServerConfigurer
-                        .jwt(jwt -> jwt // jwt ở đây là JwtConfigurer
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter()) // Gọi trên JwtConfigurer
-                                                                                          // (jwt)
-                        )
-                        .authenticationEntryPoint(customAuthenticationEntryPoint) // Gọi trên
-                                                                                  // OAuth2ResourceServerConfigurer
-                                                                                  // (oauth2)
-                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                        .authenticationEntryPoint(customAuthenticationEntryPoint))
                 .formLogin(f -> f.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
@@ -100,11 +95,8 @@ public class SecurityConfiguration {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); // Thường thì prefix là "ROLE_"
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("permission"); // Đảm bảo claim 'permission' chứa
-                                                                           // roles/authorities
-        // Nếu claim 'permission' chứa authorities không có prefix "ROLE_", thì
-        // setAuthorityPrefix("")
+        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("permission");
 
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
