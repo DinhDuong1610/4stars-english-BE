@@ -46,213 +46,212 @@ import java.util.Optional;
 @RequestMapping("/api/v1")
 @Tag(name = "Authentication API", description = "APIs for user login, registration, and token management")
 public class AuthController {
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
-    private final AuthenticationManager authenticationManager;
-    private final SecurityUtil securityUtil;
-    private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
+        private final AuthenticationManagerBuilder authenticationManagerBuilder;
+        private final AuthenticationManager authenticationManager;
+        private final SecurityUtil securityUtil;
+        private final UserService userService;
+        private final PasswordEncoder passwordEncoder;
 
-    @Value("${fourstars.jwt.refresh-token-validity-in-seconds}")
-    private long refreshTokenExpiration;
+        @Value("${fourstars.jwt.refresh-token-validity-in-seconds}")
+        private long refreshTokenExpiration;
 
-    public AuthController(AuthenticationManagerBuilder authenticationManagerBuilder,
-            AuthenticationManager authenticationManager,
-            SecurityUtil securityUtil,
-            UserService userService,
-            PasswordEncoder passwordEncoder) {
-        this.authenticationManagerBuilder = authenticationManagerBuilder;
-        this.authenticationManager = authenticationManager;
-        this.securityUtil = securityUtil;
-        this.userService = userService;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    @Operation(summary = "User Login", description = "Authenticates a user with email and password, returns JWT tokens in response and HttpOnly cookie for refresh token.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Login successful"),
-            @ApiResponse(responseCode = "400", description = "Invalid username or password")
-    })
-    @PostMapping("/auth/login")
-    @ApiMessage("Authenticate user and get tokens")
-    public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody ReqLoginDTO loginDTO) {
-        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                loginDTO.getUsername(), loginDTO.getPassword());
-
-        Authentication authentication;
-        try {
-            // Ưu tiên dùng authenticationManager nếu đã inject
-            if (this.authenticationManager != null) {
-                authentication = authenticationManager.authenticate(authenticationToken);
-            } else {
-                authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
-            }
-        } catch (AuthenticationException e) {
-            throw new ResourceNotFoundException("Invalid username or password.");
+        public AuthController(AuthenticationManagerBuilder authenticationManagerBuilder,
+                        AuthenticationManager authenticationManager,
+                        SecurityUtil securityUtil,
+                        UserService userService,
+                        PasswordEncoder passwordEncoder) {
+                this.authenticationManagerBuilder = authenticationManagerBuilder;
+                this.authenticationManager = authenticationManager;
+                this.securityUtil = securityUtil;
+                this.userService = userService;
+                this.passwordEncoder = passwordEncoder;
         }
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        @Operation(summary = "User Login", description = "Authenticates a user with email and password, returns JWT tokens in response and HttpOnly cookie for refresh token.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Login successful"),
+                        @ApiResponse(responseCode = "400", description = "Invalid username or password")
+        })
+        @PostMapping("/auth/login")
+        @ApiMessage("Authenticate user and get tokens")
+        public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody ReqLoginDTO loginDTO) {
+                UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                                loginDTO.getUsername(), loginDTO.getPassword());
 
-        ResLoginDTO res = new ResLoginDTO();
-        User currentUser = this.userService.handleGetUsername(loginDTO.getUsername());
+                Authentication authentication;
+                try {
+                        // Ưu tiên dùng authenticationManager nếu đã inject
+                        if (this.authenticationManager != null) {
+                                authentication = authenticationManager.authenticate(authenticationToken);
+                        } else {
+                                authentication = authenticationManagerBuilder.getObject()
+                                                .authenticate(authenticationToken);
+                        }
+                } catch (AuthenticationException e) {
+                        throw new ResourceNotFoundException("Invalid username or password.");
+                }
 
-        if (currentUser != null) {
-            ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
-                    currentUser.getId(),
-                    currentUser.getEmail(),
-                    currentUser.getName(),
-                    currentUser.getRole(),
-                    currentUser.getStreakCount());
-            res.setUser(userLogin);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                ResLoginDTO res = new ResLoginDTO();
+                User currentUser = this.userService.handleGetUsername(loginDTO.getUsername());
+
+                if (currentUser != null) {
+                        ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
+                                        currentUser.getId(),
+                                        currentUser.getEmail(),
+                                        currentUser.getName(),
+                                        currentUser.getRole(),
+                                        currentUser.getStreakCount());
+                        res.setUser(userLogin);
+                }
+
+                String accessToken = this.securityUtil.createAccessToken(authentication.getName(), res);
+                res.setAccessToken(accessToken);
+
+                String refreshToken = this.securityUtil.createRefreshToken(loginDTO.getUsername(), res);
+                this.userService.updateUserToken(refreshToken, loginDTO.getUsername());
+
+                ResponseCookie resCookies = ResponseCookie
+                                .from("refresh_token", refreshToken)
+                                .httpOnly(true)
+                                .secure(true)
+                                .path("/api/v1/auth")
+                                .maxAge(refreshTokenExpiration)
+                                .build();
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.SET_COOKIE, resCookies.toString())
+                                .body(res);
         }
 
-        String accessToken = this.securityUtil.createAccessToken(authentication.getName(), res);
-        res.setAccessToken(accessToken);
+        @Operation(summary = "Get Current User Account", description = "Fetches the profile information of the currently authenticated user based on their token.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved account info"),
+                        @ApiResponse(responseCode = "401", description = "Unauthorized - Token is missing or invalid")
+        })
+        @GetMapping("/auth/account")
+        @PreAuthorize("isAuthenticated()")
+        @ApiMessage("Fetch current authenticated user's account")
+        public ResponseEntity<ResLoginDTO.UserLogin> getAccount() {
+                Optional<String> currentUserLoginOpt = SecurityUtil.getCurrentUserLogin();
+                if (currentUserLoginOpt.isEmpty()) {
+                        throw new ResourceNotFoundException("User not authenticated.");
+                }
+                String email = currentUserLoginOpt.get();
+                User currentUser = this.userService.handleGetUsername(email);
 
-        String refreshToken = this.securityUtil.createRefreshToken(loginDTO.getUsername(), res);
-        this.userService.updateUserToken(refreshToken, loginDTO.getUsername());
+                if (currentUser == null) {
+                        throw new ResourceNotFoundException("User account not found for email: " + email);
+                }
 
-        ResponseCookie resCookies = ResponseCookie
-                .from("refresh_token", refreshToken)
-                .httpOnly(true)
-                .secure(true)
-                .path("/api/v1/auth")
-                .maxAge(refreshTokenExpiration)
-                .build();
+                ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
+                                currentUser.getId(),
+                                currentUser.getEmail(),
+                                currentUser.getName(),
+                                currentUser.getRole(),
+                                currentUser.getStreakCount());
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, resCookies.toString())
-                .body(res);
-    }
-
-    @Operation(summary = "Get Current User Account", description = "Fetches the profile information of the currently authenticated user based on their token.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved account info"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized - Token is missing or invalid")
-    })
-    @GetMapping("/auth/account")
-    @PreAuthorize("isAuthenticated()")
-    @ApiMessage("Fetch current authenticated user's account")
-    public ResponseEntity<ResLoginDTO.UserLogin> getAccount() {
-        Optional<String> currentUserLoginOpt = SecurityUtil.getCurrentUserLogin();
-        if (currentUserLoginOpt.isEmpty()) {
-            throw new ResourceNotFoundException("User not authenticated.");
-        }
-        String email = currentUserLoginOpt.get();
-        User currentUser = this.userService.handleGetUsername(email);
-
-        if (currentUser == null) {
-            throw new ResourceNotFoundException("User account not found for email: " + email);
+                return ResponseEntity.ok().body(userLogin);
         }
 
-        ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
-                currentUser.getId(),
-                currentUser.getEmail(),
-                currentUser.getName(),
-                currentUser.getRole(),
-                currentUser.getStreakCount()
+        @Operation(summary = "Refresh Access Token", description = "Generates a new access token using a valid refresh token from an HttpOnly cookie.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+                        @ApiResponse(responseCode = "400", description = "Refresh token is missing or invalid")
+        })
+        @PostMapping("/auth/refresh")
+        @ApiMessage("Refresh access token using refresh token from cookie")
+        public ResponseEntity<ResLoginDTO> getRefreshToken(
+                        @CookieValue(name = "refresh_token", required = false) String refreshTokenFromCookie)
 
-        );
+                        throws BadRequestException, ResourceNotFoundException {
 
-        return ResponseEntity.ok().body(userLogin);
-    }
+                if (refreshTokenFromCookie == null || refreshTokenFromCookie.isEmpty()
+                                || "error".equals(refreshTokenFromCookie)) {
+                        throw new BadRequestException("Refresh token is missing from cookie.");
+                }
+                Jwt decodedToken = this.securityUtil.checkValidRefreshToken(refreshTokenFromCookie);
+                String email = decodedToken.getSubject();
 
-    @Operation(summary = "Refresh Access Token", description = "Generates a new access token using a valid refresh token from an HttpOnly cookie.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
-            @ApiResponse(responseCode = "400", description = "Refresh token is missing or invalid")
-    })
-    @PostMapping("/auth/refresh")
-    @ApiMessage("Refresh access token using refresh token from cookie")
-    public ResponseEntity<ResLoginDTO> getRefreshToken(
-            @CookieValue(name = "refresh_token", required = false) String refreshTokenFromCookie)
+                User currentUserDB = this.userService.getUserByRefreshTokenAndEmail(refreshTokenFromCookie, email);
 
-            throws BadRequestException, ResourceNotFoundException {
+                if (currentUserDB == null) {
+                        throw new ResourceNotFoundException("Invalid refresh token or user mismatch.");
+                }
 
-        if (refreshTokenFromCookie == null || refreshTokenFromCookie.isEmpty()
-                || "error".equals(refreshTokenFromCookie)) {
-            throw new BadRequestException("Refresh token is missing from cookie.");
+                UserDetails userDetails = userService.loadUserByUsername(email);
+                UsernamePasswordAuthenticationToken newAuthentication = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(newAuthentication);
+
+                ResLoginDTO res = new ResLoginDTO();
+                ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
+                                currentUserDB.getId(),
+                                currentUserDB.getEmail(),
+                                currentUserDB.getName(),
+                                currentUserDB.getRole(),
+                                currentUserDB.getStreakCount());
+                res.setUser(userLogin);
+
+                String newAccessToken = this.securityUtil.createAccessToken(newAuthentication.getName(), res);
+                res.setAccessToken(newAccessToken);
+
+                String newRefreshToken = this.securityUtil.createRefreshToken(email, res);
+                this.userService.updateUserToken(newRefreshToken, email);
+
+                ResponseCookie newResCookies = ResponseCookie
+                                .from("refresh_token", newRefreshToken)
+                                .httpOnly(true)
+                                .secure(true)
+                                .path("/api/v1/auth")
+                                .maxAge(refreshTokenExpiration)
+                                .build();
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.SET_COOKIE, newResCookies.toString())
+                                .body(res);
         }
-        Jwt decodedToken = this.securityUtil.checkValidRefreshToken(refreshTokenFromCookie);
-        String email = decodedToken.getSubject();
 
-        User currentUserDB = this.userService.getUserByRefreshTokenAndEmail(refreshTokenFromCookie, email);
+        @Operation(summary = "User Logout", description = "Logs out the user by clearing their refresh token and cookie.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Logout successful")
+        })
+        @PostMapping("/auth/logout")
+        @PreAuthorize("isAuthenticated()")
+        @ApiMessage("Logout User")
+        public ResponseEntity<Void> logout() {
+                Optional<String> currentUserLoginOpt = SecurityUtil.getCurrentUserLogin();
+                if (currentUserLoginOpt.isPresent()) {
+                        String email = currentUserLoginOpt.get();
+                        this.userService.updateUserToken(null, email);
+                }
+                SecurityContextHolder.clearContext();
 
-        if (currentUserDB == null) {
-            throw new ResourceNotFoundException("Invalid refresh token or user mismatch.");
+                ResponseCookie deleteCookie = ResponseCookie
+                                .from("refresh_token", "")
+                                .httpOnly(true)
+                                .secure(true)
+                                .path("/api/v1/auth")
+                                .maxAge(0)
+                                .build();
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                                .build();
         }
 
-        UserDetails userDetails = userService.loadUserByUsername(email);
-        UsernamePasswordAuthenticationToken newAuthentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(newAuthentication);
-
-        ResLoginDTO res = new ResLoginDTO();
-        ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
-                currentUserDB.getId(),
-                currentUserDB.getEmail(),
-                currentUserDB.getName(),
-                currentUserDB.getRole(),
-                currentUserDB.getStreakCount());
-        res.setUser(userLogin);
-
-        String newAccessToken = this.securityUtil.createAccessToken(newAuthentication.getName(), res);
-        res.setAccessToken(newAccessToken);
-
-        String newRefreshToken = this.securityUtil.createRefreshToken(email, res);
-        this.userService.updateUserToken(newRefreshToken, email);
-
-        ResponseCookie newResCookies = ResponseCookie
-                .from("refresh_token", newRefreshToken)
-                .httpOnly(true)
-                .secure(true)
-                .path("/api/v1/auth")
-                .maxAge(refreshTokenExpiration)
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, newResCookies.toString())
-                .body(res);
-    }
-
-    @Operation(summary = "User Logout", description = "Logs out the user by clearing their refresh token and cookie.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Logout successful")
-    })
-    @PostMapping("/auth/logout")
-    @PreAuthorize("isAuthenticated()")
-    @ApiMessage("Logout User")
-    public ResponseEntity<Void> logout() {
-        Optional<String> currentUserLoginOpt = SecurityUtil.getCurrentUserLogin();
-        if (currentUserLoginOpt.isPresent()) {
-            String email = currentUserLoginOpt.get();
-            this.userService.updateUserToken(null, email);
+        @Operation(summary = "User Registration", description = "Registers a new user account.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "User registered successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid input data"),
+                        @ApiResponse(responseCode = "409", description = "Email already exists")
+        })
+        @PostMapping("/auth/register")
+        @ApiMessage("Register a new user")
+        public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO registerDTO)
+                        throws DuplicateResourceException, ResourceNotFoundException {
+                UserResponseDTO newUserInfo = this.userService.registerNewUser(registerDTO);
+                return ResponseEntity.status(HttpStatus.CREATED).body(newUserInfo);
         }
-        SecurityContextHolder.clearContext();
-
-        ResponseCookie deleteCookie = ResponseCookie
-                .from("refresh_token", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/api/v1/auth")
-                .maxAge(0)
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
-                .build();
-    }
-
-    @Operation(summary = "User Registration", description = "Registers a new user account.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "User registered successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid input data"),
-            @ApiResponse(responseCode = "409", description = "Email already exists")
-    })
-    @PostMapping("/auth/register")
-    @ApiMessage("Register a new user")
-    public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO registerDTO)
-            throws DuplicateResourceException, ResourceNotFoundException {
-        UserResponseDTO newUserInfo = this.userService.registerNewUser(registerDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(newUserInfo);
-    }
 }
