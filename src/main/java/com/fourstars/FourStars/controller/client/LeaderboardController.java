@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,8 +34,10 @@ public class LeaderboardController {
     })
     @GetMapping
     @ApiMessage("Fetch the user leaderboard, sorted by points")
-    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getLeaderboard(Pageable pageable) {
-        ResultPaginationDTO<UserResponseDTO> leaderboardData = userService.getLeaderboard(pageable);
+    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getLeaderboard(
+            Pageable pageable,
+            @RequestParam(name = "badgeId", required = false) Long badgeId) {
+        ResultPaginationDTO<UserResponseDTO> leaderboardData = userService.getLeaderboard(pageable, badgeId);
         return ResponseEntity.ok(leaderboardData);
     }
 }

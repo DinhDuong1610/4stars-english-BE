@@ -27,6 +27,8 @@ public interface UserVocabularyRepository
 
     int countByUser(User user);
 
+    long countByUserAndNextReviewAtBefore(User user, Instant now);
+
     @Modifying
     @Query("DELETE FROM UserVocabulary uv WHERE uv.id.vocabularyId = :vocabularyId")
     void deleteByVocabularyId(@Param("vocabularyId") Long vocabularyId);
