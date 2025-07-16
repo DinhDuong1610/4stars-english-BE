@@ -1,10 +1,13 @@
 package com.fourstars.FourStars.service;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,7 +36,6 @@ import com.fourstars.FourStars.domain.Role;
 import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
-import com.fourstars.FourStars.domain.Vocabulary;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
@@ -51,6 +53,7 @@ import com.fourstars.FourStars.repository.SubscriptionRepository;
 import com.fourstars.FourStars.repository.UserQuizAttemptRepository;
 import com.fourstars.FourStars.repository.UserRepository;
 import com.fourstars.FourStars.repository.UserVocabularyRepository;
+import com.fourstars.FourStars.repository.projection.LeaderboardProjection;
 import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
@@ -521,28 +524,39 @@ public class UserService implements UserDetailsService {
     public ResultPaginationDTO<UserResponseDTO> getLeaderboard(Pageable pageable, Long badgeId) {
         logger.debug("Fetching leaderboard data, page: {}, badgeId: {}", pageable.getPageNumber(), badgeId);
 
-        Specification<User> spec = (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(root.get("role").get("name").in(Arrays.asList("USER", "PREMIUM")));
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate sunday = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
-            if (badgeId != null) {
-                predicates.add(criteriaBuilder.equal(root.get("badge").get("id"), badgeId));
-            }
+        Instant startOfWeek = monday.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endOfWeek = sunday.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
 
-            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-        };
+        Page<LeaderboardProjection> leaderboardPage = userQuizAttemptRepository.findWeeklyLeaderboard(
+                startOfWeek, endOfWeek, badgeId, pageable);
 
-        Page<User> userPage = this.userRepository.findAll(spec, pageable);
-
-        List<UserResponseDTO> userDTOs = userPage.getContent().stream()
-                .map(this::convertToUserResponseDTO)
+        List<UserResponseDTO> userDTOs = leaderboardPage.getContent().stream()
+                .filter(p -> p.getUserId() != null)
+                .map(projection -> {
+                    UserResponseDTO dto = new UserResponseDTO();
+                    dto.setId(projection.getUserId());
+                    dto.setName(projection.getName());
+                    dto.setEmail(projection.getEmail());
+                    dto.setPoint(projection.getWeeklyPoints());
+                    User user = userRepository.findById(projection.getUserId()).orElse(null);
+                    if (user != null) {
+                        dto.setStreakCount(user.getStreakCount());
+                        dto.setBadge(new UserResponseDTO.BadgeInfoDTO(user.getBadge().getId(),
+                                user.getBadge().getName(), user.getBadge().getImage()));
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
-                userPage.getNumber() + 1,
-                userPage.getSize(),
-                userPage.getTotalPages(),
-                userPage.getTotalElements());
+                leaderboardPage.getNumber() + 1,
+                leaderboardPage.getSize(),
+                leaderboardPage.getTotalPages(),
+                leaderboardPage.getTotalElements());
 
         return new ResultPaginationDTO<>(meta, userDTOs);
     }
