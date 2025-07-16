@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -517,10 +518,21 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<UserResponseDTO> getLeaderboard(Pageable pageable) {
-        logger.debug("Fetching leaderboard data, page: {}", pageable.getPageNumber());
+    public ResultPaginationDTO<UserResponseDTO> getLeaderboard(Pageable pageable, Long badgeId) {
+        logger.debug("Fetching leaderboard data, page: {}, badgeId: {}", pageable.getPageNumber(), badgeId);
 
-        Page<User> userPage = this.userRepository.findAllByOrderByPointDesc(pageable);
+        Specification<User> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(root.get("role").get("name").in(Arrays.asList("USER", "PREMIUM")));
+
+            if (badgeId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("badge").get("id"), badgeId));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<User> userPage = this.userRepository.findAll(spec, pageable);
 
         List<UserResponseDTO> userDTOs = userPage.getContent().stream()
                 .map(this::convertToUserResponseDTO)
@@ -535,16 +547,17 @@ public class UserService implements UserDetailsService {
         return new ResultPaginationDTO<>(meta, userDTOs);
     }
 
+    @Transactional(readOnly = true)
     public DashboardResponseDTO getUserDashboard() {
         User currentUser = getCurrentAuthenticatedUser();
         logger.debug("Fetching dashboard data for user: {}", currentUser.getEmail());
 
         DashboardResponseDTO dashboard = new DashboardResponseDTO();
 
-        // 1. Tổng số từ vựng trong sổ tay
+        // Tổng số từ vựng trong sổ tay
         dashboard.setTotalVocabulary(userVocabularyRepository.countByUser(currentUser));
 
-        // 2. Số lượng từ ở mỗi cấp độ SM-2
+        // Số lượng từ ở mỗi cấp độ SM-2
         Map<Integer, Integer> levelCounts = new HashMap<>();
         List<UserVocabulary> userVocabularies = userVocabularyRepository.findByUser(currentUser);
         for (UserVocabulary uv : userVocabularies) {
@@ -552,23 +565,33 @@ public class UserService implements UserDetailsService {
         }
         dashboard.setVocabularyLevelCounts(levelCounts);
 
-        // 3. Số bài quiz đã hoàn thành
+        // Số bài quiz đã hoàn thành
         dashboard.setTotalQuizzesCompleted(userQuizAttemptRepository.countByUser(currentUser));
 
-        // 4. Điểm số trung bình của các bài quiz
+        // Điểm số trung bình của các bài quiz
         Double averageScore = userQuizAttemptRepository.calculateAverageScoreByUser(currentUser);
         dashboard.setAverageQuizScore(averageScore != null ? averageScore : 0.0);
 
-        // 5. Chuỗi ngày học hiện tại
+        // Chuỗi ngày học hiện tại
         dashboard.setCurrentStreak(currentUser.getStreakCount() != null ? currentUser.getStreakCount() : 0);
 
-        // 6. Huy hiệu đã đạt được
-        dashboard.setBadges(this.convertToBadgeResponseDTO(currentUser.getBadge()));
+        // Huy hiệu đã đạt được
+        if (currentUser.getBadge() != null) {
+            dashboard.setBadges(this.convertToBadgeResponseDTO(currentUser.getBadge()));
+        }
 
-        // 7. Trạng thái gói học phí
+        // Lấy tổng điểm của user
+        dashboard.setUserPoints(currentUser.getPoint() != 0 ? currentUser.getPoint() : 0);
+
+        // Lấy tổng số từ cần ôn tập
+        long reviewCount = userVocabularyRepository.countByUserAndNextReviewAtBefore(currentUser, Instant.now());
+        dashboard.setWordsToReviewCount(reviewCount);
+
+        // Trạng thái gói học phí
         Subscription currentSubscription = subscriptionRepository.findTopByUserOrderByEndDateDesc(currentUser)
                 .orElse(null);
-        if (currentSubscription != null && currentSubscription.getEndDate().isAfter(Instant.now())) {
+        if (currentSubscription != null && currentSubscription.getEndDate().isAfter(Instant.now())
+                && currentSubscription.isActive()) {
             PlanResponseDTO planDTO = convertToPlanResponseDTO(currentSubscription.getPlan());
             dashboard.setCurrentPlan(planDTO);
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -580,6 +603,7 @@ public class UserService implements UserDetailsService {
             dashboard.setSubscriptionExpiryDate(null);
         }
 
+        logger.debug("Dashboard data composed for user: {}", currentUser.getEmail());
         return dashboard;
     }
 
