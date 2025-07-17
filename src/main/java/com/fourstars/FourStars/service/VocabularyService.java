@@ -423,6 +423,33 @@ public class VocabularyService {
         return new ResultPaginationDTO<>(meta, vocabDTOs);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<VocabularyResponseDTO> fetchNotebookByLevel(Integer level, Pageable pageable) {
+        if (level < 1 || level > 5) {
+            throw new BadRequestException("Level must be between 1 and 5.");
+        }
+
+        User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' fetching notebook vocabularies with level: {}", currentUser.getEmail(), level);
+
+        Page<UserVocabulary> userVocabPage = userVocabularyRepository
+                .findByUserAndLevelOrderByCreatedAtDesc(currentUser, level, pageable);
+
+        List<VocabularyResponseDTO> vocabDTOs = userVocabPage.getContent().stream()
+                .map(userVocab -> convertToVocabularyResponseDTO(userVocab.getVocabulary()))
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                userVocabPage.getNumber() + 1,
+                userVocabPage.getSize(),
+                userVocabPage.getTotalPages(),
+                userVocabPage.getTotalElements());
+
+        logger.debug("Found {} vocabularies at level {} for user '{}'", vocabDTOs.size(), level,
+                currentUser.getEmail());
+        return new ResultPaginationDTO<>(meta, vocabDTOs);
+    }
+
     @Transactional
     public List<VocabularyResponseDTO> createBulkVocabularies(List<VocabularyRequestDTO> requestDTOs)
             throws DuplicateResourceException {

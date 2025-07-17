@@ -35,6 +35,23 @@ public class NotebookController {
         this.vocabularyService = vocabularyService;
     }
 
+    @Operation(summary = "Get notebook words by SM-2 level", description = "Retrieves a paginated list of words from the user's notebook that are at a specific learning level (1-5).")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved words for the specified level"),
+            @ApiResponse(responseCode = "400", description = "Invalid level (must be 1-5)"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated")
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @GetMapping("/level/{level}")
+    @ApiMessage("Fetch notebook words by SM-2 level")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResultPaginationDTO<VocabularyResponseDTO>> getNotebookByLevel(
+            @Parameter(description = "The SM-2 level (1-5) to filter by") @PathVariable Integer level,
+            Pageable pageable) {
+        ResultPaginationDTO<VocabularyResponseDTO> result = vocabularyService.fetchNotebookByLevel(level, pageable);
+        return ResponseEntity.ok(result);
+    }
+
     @Operation(summary = "Add a word to my notebook", description = "Adds a specific vocabulary word to the authenticated user's personal learning list. This creates the initial record for SM-2 spaced repetition tracking.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Word successfully added to the notebook"),

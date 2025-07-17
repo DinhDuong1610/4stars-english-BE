@@ -37,6 +37,8 @@ public interface UserVocabularyRepository
 
     Page<UserVocabulary> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
 
+    Page<UserVocabulary> findByUserAndLevelOrderByCreatedAtDesc(User user, Integer level, Pageable pageable);
+
     /**
      * Tìm danh sách những User duy nhất có từ vựng cần ôn tập
      * (có nextReviewAt nhỏ hơn hoặc bằng thời điểm hiện tại).
