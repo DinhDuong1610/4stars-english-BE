@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import com.fourstars.FourStars.service.VocabularyService;
 import com.fourstars.FourStars.util.annotation.ApiMessage;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -58,5 +60,21 @@ public class NotebookController {
     public ResponseEntity<ResultPaginationDTO<VocabularyResponseDTO>> getRecentlyAdded(Pageable pageable) {
         ResultPaginationDTO<VocabularyResponseDTO> result = vocabularyService.fetchRecentlyAddedToNotebook(pageable);
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Remove a word from my notebook", description = "Removes a specific vocabulary word from the authenticated user's personal learning list.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Word successfully removed from the notebook"),
+            @ApiResponse(responseCode = "401", description = "User is not authenticated"),
+            @ApiResponse(responseCode = "404", description = "Vocabulary word is not in the user's notebook")
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @DeleteMapping("/remove/{vocabularyId}")
+    @ApiMessage("Remove a vocabulary from the user's personal notebook")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> removeVocabularyFromNotebook(
+            @Parameter(description = "ID of the vocabulary word to remove") @PathVariable long vocabularyId) {
+        vocabularyService.removeVocabularyFromNotebook(vocabularyId);
+        return ResponseEntity.noContent().build();
     }
 }

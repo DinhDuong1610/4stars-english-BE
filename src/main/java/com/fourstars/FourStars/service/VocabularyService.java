@@ -383,6 +383,24 @@ public class VocabularyService {
         return convertToUserVocabularyResponseDTO(savedEntry);
     }
 
+    @Transactional
+    public void removeVocabularyFromNotebook(Long vocabularyId) {
+        User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' requesting to remove vocabulary ID {} from notebook.", currentUser.getEmail(),
+                vocabularyId);
+
+        UserVocabularyId userVocabularyId = new UserVocabularyId(currentUser.getId(), vocabularyId);
+
+        if (!userVocabularyRepository.existsById(userVocabularyId)) {
+            throw new ResourceNotFoundException(
+                    "Vocabulary with id " + vocabularyId + " is not in the user's notebook.");
+        }
+
+        userVocabularyRepository.deleteById(userVocabularyId);
+        logger.info("Successfully removed vocabulary ID {} from notebook for user '{}'.", vocabularyId,
+                currentUser.getEmail());
+    }
+
     @Transactional(readOnly = true)
     public ResultPaginationDTO<VocabularyResponseDTO> fetchRecentlyAddedToNotebook(Pageable pageable) {
         User currentUser = getCurrentAuthenticatedUser();
