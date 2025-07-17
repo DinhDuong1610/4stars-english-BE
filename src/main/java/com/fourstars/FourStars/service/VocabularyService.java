@@ -383,6 +383,28 @@ public class VocabularyService {
         return convertToUserVocabularyResponseDTO(savedEntry);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<VocabularyResponseDTO> fetchRecentlyAddedToNotebook(Pageable pageable) {
+        User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' fetching recently added vocabularies to notebook.", currentUser.getEmail());
+
+        Page<UserVocabulary> userVocabPage = userVocabularyRepository.findByUserOrderByCreatedAtDesc(currentUser,
+                pageable);
+
+        List<VocabularyResponseDTO> vocabDTOs = userVocabPage.getContent().stream()
+                .map(userVocab -> convertToVocabularyResponseDTO(userVocab.getVocabulary()))
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                userVocabPage.getNumber() + 1,
+                userVocabPage.getSize(),
+                userVocabPage.getTotalPages(),
+                userVocabPage.getTotalElements());
+
+        logger.debug("Found {} recently added vocabularies for user '{}'", vocabDTOs.size(), currentUser.getEmail());
+        return new ResultPaginationDTO<>(meta, vocabDTOs);
+    }
+
     @Transactional
     public List<VocabularyResponseDTO> createBulkVocabularies(List<VocabularyRequestDTO> requestDTOs)
             throws DuplicateResourceException {
