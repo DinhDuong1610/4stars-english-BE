@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -32,6 +34,10 @@ public interface UserVocabularyRepository
     @Modifying
     @Query("DELETE FROM UserVocabulary uv WHERE uv.id.vocabularyId = :vocabularyId")
     void deleteByVocabularyId(@Param("vocabularyId") Long vocabularyId);
+
+    Page<UserVocabulary> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+
+    Page<UserVocabulary> findByUserAndLevelOrderByCreatedAtDesc(User user, Integer level, Pageable pageable);
 
     /**
      * Tìm danh sách những User duy nhất có từ vựng cần ôn tập
