@@ -40,6 +40,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // ký).
         // - "/queue": Dùng cho các message cá nhân (chỉ gửi đến một người dùng cụ thể).
         registry.enableSimpleBroker("/topic", "/queue");
+
+        // Chỉ định rõ ràng tiền tố cho các destination của user cá nhân
+        registry.setUserDestinationPrefix("/user");
     }
 
     @Override

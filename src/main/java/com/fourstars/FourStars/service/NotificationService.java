@@ -63,7 +63,7 @@ public class NotificationService {
         return dto;
     }
 
-    @Async
+    // @Async
     @Transactional
     public void createNotification(User recipient, User actor, NotificationType type, String message, String link) {
         String recipientEmail = (recipient != null) ? recipient.getEmail() : "N/A";
@@ -82,19 +82,40 @@ public class NotificationService {
         Notification savedNotification = notificationRepository.save(notification);
         logger.info("Notification with ID {} saved to database.", savedNotification.getId());
 
-        try {
-            NotificationResponseDTO notificationDTO = convertToResponseDTO(savedNotification);
-            logger.debug("Pushing real-time notification ID {} to user '{}'", savedNotification.getId(),
-                    recipient.getEmail());
+        // try {
+        // NotificationResponseDTO notificationDTO =
+        // convertToResponseDTO(savedNotification);
+        // logger.debug("Pushing real-time notification ID {} to user '{}'",
+        // savedNotification.getId(),
+        // recipient.getEmail());
 
+        // if (recipient != null) {
+        // messagingTemplate.convertAndSendToUser(
+        // recipient.getEmail(),
+        // "/queue/notifications",
+        // notificationDTO);
+        // }
+        // } catch (Exception e) {
+        // logger.error("Error sending notification via WebSocket for recipient {}: {}",
+        // recipientEmail,
+        // e.getMessage());
+        // }
+
+        try {
             if (recipient != null) {
-                messagingTemplate.convertAndSendToUser(
-                        recipient.getEmail(),
-                        "/queue/notifications",
-                        notificationDTO);
+                NotificationResponseDTO notificationDTO = convertToResponseDTO(savedNotification);
+
+                // === THAY ĐỔI CÁCH GỬI WEBSOCKET ===
+                // Tạo một destination động, riêng biệt cho mỗi user
+                String destination = "/topic/notifications." + recipient.getId();
+                logger.debug("Pushing real-time notification ID {} to destination '{}'", savedNotification.getId(),
+                        destination);
+
+                // Gửi message đến destination đó
+                messagingTemplate.convertAndSend(destination, notificationDTO);
             }
         } catch (Exception e) {
-            logger.error("Error sending notification via WebSocket for recipient {}: {}", recipientEmail,
+            logger.error("Error sending notification via WebSocket for recipient ID {}: {}", recipient.getId(),
                     e.getMessage());
         }
     }
