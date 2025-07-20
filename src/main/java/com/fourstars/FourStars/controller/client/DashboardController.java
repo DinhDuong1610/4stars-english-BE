@@ -1,12 +1,18 @@
 package com.fourstars.FourStars.controller.client;
 
+import java.time.LocalDate;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.dashboard.DashboardResponseDTO;
 import com.fourstars.FourStars.domain.response.user.UserResponseDTO;
 import com.fourstars.FourStars.service.UserService;
@@ -46,5 +52,21 @@ public class DashboardController {
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable long id) throws ResourceNotFoundException {
         UserResponseDTO user = userService.fetchUserById(id);
         return ResponseEntity.ok(user);
+    }
+
+    @GetMapping
+    @ApiMessage("Fetch all users with pagination")
+    public ResponseEntity<ResultPaginationDTO<UserResponseDTO>> getAllUsers(
+            Pageable pageable,
+            @RequestParam(name = "name", required = false) String name,
+            @RequestParam(name = "email", required = false) String email,
+            @RequestParam(name = "role", required = false) String role,
+            @RequestParam(name = "active", required = false) Boolean active,
+            @RequestParam(name = "startCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startCreatedAt,
+            @RequestParam(name = "endCreatedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endCreatedAt) {
+        ResultPaginationDTO<UserResponseDTO> result = userService.fetchAllUsers(pageable, name, email, active,
+                role,
+                startCreatedAt, endCreatedAt);
+        return ResponseEntity.ok(result);
     }
 }
