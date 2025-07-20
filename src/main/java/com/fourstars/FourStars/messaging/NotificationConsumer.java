@@ -40,7 +40,7 @@ public class NotificationConsumer {
             User actor = userService.getUserEntityById(message.getActorId());
 
             String notifMessage = actor.getName() + " đã trả lời bình luận của bạn.";
-            String link = "/api/v1/posts/" + message.getPostId() + "#comment-" + message.getCommentId();
+            String link = "/posts/" + message.getPostId();
             logger.debug("Creating NEW_REPLY notification for user '{}'", recipient.getEmail());
 
             notificationService.createNotification(recipient, actor, NotificationType.NEW_REPLY, notifMessage, link);
@@ -61,7 +61,7 @@ public class NotificationConsumer {
             User actor = userService.getUserEntityById(message.getActorId());
 
             String notifMessage = actor.getName() + " đã thích bài viết của bạn.";
-            String link = "/api/v1/posts/" + message.getPostId();
+            String link = "/posts/" + message.getPostId();
 
             logger.debug("Creating NEW_LIKE_ON_POST notification for user '{}'", recipient.getEmail());
             notificationService.createNotification(recipient, actor, NotificationType.NEW_LIKE_ON_POST, notifMessage,
@@ -86,7 +86,7 @@ public class NotificationConsumer {
 
             String notifMessage = "Bạn có " + message.getReviewCount()
                     + " từ vựng cần ôn tập hôm nay. Vào học ngay thôi!";
-            String link = "/api/v1/review";
+            String link = "/";
             logger.debug("Creating REVIEW_REMINDER notification for user '{}'", recipient.getEmail());
 
             notificationService.createNotification(recipient, null, NotificationType.REVIEW_REMINDER, notifMessage,
