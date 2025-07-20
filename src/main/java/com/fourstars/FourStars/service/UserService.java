@@ -37,6 +37,7 @@ import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
+import com.fourstars.FourStars.domain.request.user.ChangePasswordRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
@@ -518,6 +519,23 @@ public class UserService implements UserDetailsService {
         logger.info("Successfully registered new user with ID: {}", savedUser.getId());
 
         return convertToUserResponseDTO(savedUser);
+    }
+
+    @Transactional
+    public void changeCurrentUserPassword(ChangePasswordRequestDTO requestDTO) {
+        User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' requesting to change password.", currentUser.getEmail());
+
+        if (!passwordEncoder.matches(requestDTO.getCurrentPassword(), currentUser.getPassword())) {
+            throw new BadRequestException("Incorrect current password.");
+        }
+
+        String newHashedPassword = passwordEncoder.encode(requestDTO.getNewPassword());
+
+        currentUser.setPassword(newHashedPassword);
+        userRepository.save(currentUser);
+
+        logger.info("User '{}' successfully changed password.", currentUser.getEmail());
     }
 
     @Transactional(readOnly = true)
