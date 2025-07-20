@@ -9,6 +9,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -53,8 +54,12 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
                 try {
                     Jwt jwt = jwtDecoder.decode(token);
-                    UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) jwtAuthenticationConverter
-                            .convert(jwt);
+                    // UsernamePasswordAuthenticationToken authentication =
+                    // (UsernamePasswordAuthenticationToken) jwtAuthenticationConverter
+                    // .convert(jwt);
+
+                    Authentication authentication = jwtAuthenticationConverter.convert(jwt);
+
                     accessor.setUser(authentication);
                     logger.info("Successfully authenticated user '{}' for WebSocket session ID: {}",
                             authentication.getName(), accessor.getSessionId());
