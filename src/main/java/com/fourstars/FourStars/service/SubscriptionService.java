@@ -205,11 +205,11 @@ public class SubscriptionService {
                 predicates.add(criteriaBuilder.equal(root.get("paymentStatus"), status));
             }
             if (startDate != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"),
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("startDate"),
                         startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
             }
             if (endDate != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"),
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("endDate"),
                         endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant()));
             }
 

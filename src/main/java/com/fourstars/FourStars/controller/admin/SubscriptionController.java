@@ -71,11 +71,11 @@ public class SubscriptionController {
     public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getAllSubscriptionsAsAdmin(Pageable pageable,
             @Parameter(description = "Filter by User ID") @RequestParam(required = false) Long userId,
             @Parameter(description = "Filter by Plan ID") @RequestParam(required = false) Long planId,
-            @Parameter(description = "Filter by Payment Status (PENDING, PAID, FAILED)") @RequestParam(required = false) PaymentStatus status,
+            @Parameter(description = "Filter by Payment Status (PENDING, PAID, FAILED)") @RequestParam(required = false) PaymentStatus paymentStatus,
             @Parameter(description = "Filter by start date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "Filter by end date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         ResultPaginationDTO<SubscriptionResponseDTO> result = subscriptionService
-                .fetchAllSubscriptionsAsAdmin(pageable, userId, planId, status, startDate, endDate);
+                .fetchAllSubscriptionsAsAdmin(pageable, userId, planId, paymentStatus, startDate, endDate);
         return ResponseEntity.ok(result);
     }
 
