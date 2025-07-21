@@ -1,6 +1,9 @@
 package com.fourstars.FourStars.controller.admin;
 
+import java.time.LocalDate;
+
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +21,7 @@ import com.fourstars.FourStars.util.constant.PaymentStatus;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -64,9 +68,14 @@ public class SubscriptionController {
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("ADMIN: Fetch all subscriptions with pagination")
-    public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getAllSubscriptionsAsAdmin(Pageable pageable) {
+    public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getAllSubscriptionsAsAdmin(Pageable pageable,
+            @Parameter(description = "Filter by User ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "Filter by Plan ID") @RequestParam(required = false) Long planId,
+            @Parameter(description = "Filter by Payment Status (PENDING, PAID, FAILED)") @RequestParam(required = false) PaymentStatus paymentStatus,
+            @Parameter(description = "Filter by start date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Filter by end date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         ResultPaginationDTO<SubscriptionResponseDTO> result = subscriptionService
-                .fetchAllSubscriptionsAsAdmin(pageable);
+                .fetchAllSubscriptionsAsAdmin(pageable, userId, planId, paymentStatus, startDate, endDate);
         return ResponseEntity.ok(result);
     }
 

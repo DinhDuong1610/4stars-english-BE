@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.web.servlet.view.RedirectView;
@@ -73,18 +74,22 @@ public class PaymentController {
     @Operation(summary = "User Return URL for VNPay", description = "The URL where VNPay redirects the user's browser after payment. This endpoint will then redirect to the frontend application.", hidden = true)
     @GetMapping("/vnpay/return")
     @ApiMessage("Handle user redirection from VNPay")
-    public RedirectView handleVNPayReturn(@RequestParam Map<String, String> allParams) {
+    public RedirectView handleVNPayReturn(@RequestParam Map<String, String> allParams)
+            throws UnsupportedEncodingException {
         String vnp_ResponseCode = allParams.get("vnp_ResponseCode");
-        String frontendReturnUrl = "http://localhost:8080/api/v1/auth/account"; // URL frontend của bạn
+        String frontendReturnUrl = "http://localhost:5173/store"; // URL frontend của bạn
 
-        // if ("00".equals(vnp_ResponseCode)) {
-        // // Thanh toán thành công -> chuyển hướng về trang thành công
-        // return new RedirectView(frontendReturnUrl + "?status=success");
-        // } else {
-        // // Thanh toán thất bại -> chuyển hướng về trang thất bại
-        // return new RedirectView(frontendReturnUrl + "?status=failed");
-        // }
+        // Cái này chỉ để test vì /vnpay/ipn chưa hoạt động, chưa deploy
+        paymentService.handleVNPayTest(allParams);
 
-        return new RedirectView(frontendReturnUrl);
+        if ("00".equals(vnp_ResponseCode)) {
+            // Thanh toán thành công -> chuyển hướng về trang thành công
+            return new RedirectView(frontendReturnUrl + "?status=success");
+        } else {
+            // Thanh toán thất bại -> chuyển hướng về trang thất bại
+            return new RedirectView(frontendReturnUrl + "?status=failed");
+        }
+
+        // return new RedirectView(frontendReturnUrl);
     }
 }

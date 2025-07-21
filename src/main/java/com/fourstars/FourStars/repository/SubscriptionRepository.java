@@ -16,6 +16,7 @@ import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.repository.projection.DateCountProjection;
 import com.fourstars.FourStars.repository.projection.DateRevenueProjection;
+import com.fourstars.FourStars.repository.projection.RevenueByPlanProjection;
 
 @Repository
 public interface SubscriptionRepository
@@ -45,4 +46,12 @@ public interface SubscriptionRepository
 
     @Query(value = "SELECT CAST(s.updated_at AS DATE) as date, SUM(p.price) as total FROM subscriptions s JOIN plans p ON s.plan_id = p.id WHERE s.payment_status = 'PAID' AND s.updated_at >= :startDate GROUP BY CAST(s.updated_at AS DATE) ORDER BY date ASC", nativeQuery = true)
     List<DateRevenueProjection> findRevenueByDate(Instant startDate);
+
+    @Query("SELECT p.id as planId, p.name as planName, COUNT(s.id) as transactionCount, SUM(p.price) as totalRevenue " +
+            "FROM Subscription s JOIN s.plan p " +
+            "WHERE s.paymentStatus = com.fourstars.FourStars.util.constant.PaymentStatus.PAID " +
+            "AND s.updatedAt >= :startDate AND s.updatedAt < :endDate " +
+            "GROUP BY p.id, p.name " +
+            "ORDER BY totalRevenue DESC")
+    List<RevenueByPlanProjection> findRevenueByPlan(Instant startDate, Instant endDate);
 }
