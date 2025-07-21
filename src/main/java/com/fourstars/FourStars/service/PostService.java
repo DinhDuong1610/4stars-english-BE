@@ -204,6 +204,31 @@ public class PostService {
         return new ResultPaginationDTO<>(meta, postDTOs);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<PostResponseDTO> fetchAllMyPosts(Pageable pageable) {
+        logger.debug("Fetching all posts for page: {}", pageable.getPageNumber());
+
+        User currentUser = getCurrentAuthenticatedUser();
+        if (currentUser == null) {
+            throw new ResourceNotFoundException("User not authenticated.");
+        }
+        logger.info("User '{}' attempting to fetch their posts.", currentUser.getEmail());
+
+        Page<Post> pagePost = postRepository.findAllByUserId(currentUser.getId(), pageable);
+        List<PostResponseDTO> postDTOs = pagePost.getContent().stream()
+                .map(post -> convertToPostResponseDTO(post, currentUser))
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                pagePost.getTotalPages(),
+                pagePost.getTotalElements());
+        logger.debug("Found {} posts on page {}/{}", postDTOs.size(), meta.getPage(), meta.getPages());
+
+        return new ResultPaginationDTO<>(meta, postDTOs);
+    }
+
     @Transactional
     public void handleLikePost(long postId) throws ResourceNotFoundException, DuplicateResourceException {
         User currentUser = getCurrentAuthenticatedUser();

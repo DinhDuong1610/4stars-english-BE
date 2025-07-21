@@ -107,6 +107,14 @@ public class PostController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Get all posts (feed)", description = "Publicly available endpoint to retrieve a paginated feed of all user posts.")
+    @GetMapping("/me")
+    @ApiMessage("Fetch all posts with pagination")
+    public ResponseEntity<ResultPaginationDTO<PostResponseDTO>> getAllMyPosts(Pageable pageable) {
+        ResultPaginationDTO<PostResponseDTO> result = postService.fetchAllMyPosts(pageable);
+        return ResponseEntity.ok(result);
+    }
+
     @Operation(summary = "Like a post")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Post liked successfully"),
