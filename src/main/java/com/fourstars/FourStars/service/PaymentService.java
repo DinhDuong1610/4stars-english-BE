@@ -239,4 +239,35 @@ public class PaymentService {
         return response;
     }
 
+    @Transactional
+    public boolean handleVNPayTest(Map<String, String> vnp_Params)
+            throws UnsupportedEncodingException {
+
+        String vnp_TxnRef = vnp_Params.get("vnp_TxnRef");
+        long subscriptionId = Long.parseLong(vnp_TxnRef.split("_")[0]);
+
+        Subscription subscription = subscriptionRepository.findById(subscriptionId).orElse(null);
+        if (subscription != null) {
+            if (subscription.getPaymentStatus() != PaymentStatus.PAID) {
+                logger.info("Payment successful for subscription ID: {}. Updating status to PAID.",
+                        subscriptionId);
+                subscription.setPaymentStatus(PaymentStatus.PAID);
+                subscription.setActive(true);
+                subscription.setTransactionId(vnp_Params.get("vnp_TransactionNo"));
+                subscriptionRepository.save(subscription);
+
+                return true;
+            } else {
+                logger.warn("Payment failed for subscription ID: {}. VNPay response code: {}",
+                        subscriptionId, vnp_Params.get("vnp_ResponseCode"));
+
+                subscription.setPaymentStatus(PaymentStatus.FAILED);
+                subscriptionRepository.save(subscription);
+
+                return false;
+            }
+        }
+        return false;
+    }
+
 }
