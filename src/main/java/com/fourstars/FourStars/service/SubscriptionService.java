@@ -1,7 +1,10 @@
 package com.fourstars.FourStars.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -9,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +30,8 @@ import com.fourstars.FourStars.util.constant.PaymentStatus;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class SubscriptionService {
@@ -181,11 +187,36 @@ public class SubscriptionService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO<SubscriptionResponseDTO> fetchAllSubscriptionsAsAdmin(Pageable pageable) {
+    public ResultPaginationDTO<SubscriptionResponseDTO> fetchAllSubscriptionsAsAdmin(Pageable pageable, Long userId,
+            Long planId, PaymentStatus status, LocalDate startDate, LocalDate endDate) {
         logger.debug("Admin fetching all subscriptions, page: {}, size: {}", pageable.getPageNumber(),
                 pageable.getPageSize());
 
-        Page<Subscription> pageSubscription = subscriptionRepository.findAll(pageable);
+        Specification<Subscription> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (userId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("user").get("id"), userId));
+            }
+            if (planId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("plan").get("id"), planId));
+            }
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("paymentStatus"), status));
+            }
+            if (startDate != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"),
+                        startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            }
+            if (endDate != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"),
+                        endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant()));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Subscription> pageSubscription = subscriptionRepository.findAll(spec, pageable);
         List<SubscriptionResponseDTO> subscriptionDTOs = pageSubscription.getContent().stream()
                 .map(this::convertToSubscriptionResponseDTO)
                 .collect(Collectors.toList());
