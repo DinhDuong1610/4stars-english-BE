@@ -66,13 +66,14 @@ public class QuizService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
+    private final UserService userService;
     private final RabbitTemplate rabbitTemplate;
     private VocabularyService vocabularyService;
 
     public QuizService(QuizRepository quizRepository, QuestionRepository questionRepository,
             UserQuizAttemptRepository userQuizAttemptRepository, UserRepository userRepository,
             CategoryRepository categoryRepository, VocabularyRepository vocabularyRepository,
-            RabbitTemplate rabbitTemplate) {
+            RabbitTemplate rabbitTemplate, UserService userService) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
         this.userQuizAttemptRepository = userQuizAttemptRepository;
@@ -80,6 +81,7 @@ public class QuizService {
         this.categoryRepository = categoryRepository;
         this.vocabularyRepository = vocabularyRepository;
         this.rabbitTemplate = rabbitTemplate;
+        this.userService = userService;
     }
 
     @Autowired
@@ -332,6 +334,15 @@ public class QuizService {
         attempt.setScore(totalScore);
         attempt.setStatus(QuizStatus.COMPLETED);
         attempt.setCompletedAt(Instant.now());
+
+        if (totalScore > 0) {
+            int currentPoints = currentUser.getPoint();
+            currentUser.setPoint(currentPoints + totalScore);
+            logger.info("Added {} points to user '{}'. New total points: {}", totalScore, currentUser.getEmail(),
+                    currentUser.getPoint());
+
+            userService.checkAndAwardBadge(currentUser);
+        }
 
         UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
         logger.info("Scoring complete for attempt ID: {}. Final score: {}", savedAttempt.getId(),
