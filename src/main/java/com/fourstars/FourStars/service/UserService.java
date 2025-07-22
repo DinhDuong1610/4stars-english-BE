@@ -10,11 +10,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
@@ -42,6 +44,7 @@ import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.auth.ResCreateUserDTO;
+import com.fourstars.FourStars.domain.response.auth.ResLoginDTO;
 import com.fourstars.FourStars.domain.response.badge.BadgeResponseDTO;
 import com.fourstars.FourStars.domain.response.dashboard.DashboardResponseDTO;
 import com.fourstars.FourStars.domain.response.permission.UserPermissionDTO;
@@ -59,11 +62,17 @@ import com.fourstars.FourStars.util.SecurityUtil;
 import com.fourstars.FourStars.util.error.BadRequestException;
 import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
 
 import jakarta.persistence.criteria.Predicate;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
@@ -81,6 +90,15 @@ public class UserService implements UserDetailsService {
     private final SubscriptionRepository subscriptionRepository;
     private final SecurityUtil securityUtil;
     private final CacheManager cacheManager;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String googleClientId;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
+    private String googleClientSecret;
+
+    @Value("${fourstars.jwt.refresh-token-validity-in-seconds}")
+    private long refreshTokenExpiration;
 
     public UserService(UserRepository userRepository,
             RoleRepository roleRepository,
@@ -133,6 +151,93 @@ public class UserService implements UserDetailsService {
             dto.setBadge(badgeInfo);
         }
 
+        return dto;
+    }
+
+    @Transactional
+    public ResLoginDTO loginWithGoogle(String code) {
+        logger.info("Attempting to log in user with Google Authorization Code.");
+        if (code == null || code.isBlank()) {
+            logger.error("Google Authorization Code is null or empty.");
+            throw new BadRequestException("Google Authorization Code cannot be empty.");
+        }
+
+        try {
+            GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
+                    new NetHttpTransport(),
+                    JacksonFactory.getDefaultInstance(),
+                    "https://oauth2.googleapis.com/token",
+                    googleClientId,
+                    googleClientSecret,
+                    code,
+                    "postmessage").execute();
+
+            String idTokenString = tokenResponse.getIdToken();
+
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
+                    JacksonFactory.getDefaultInstance())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+
+            if (idToken == null) {
+                throw new BadRequestException("Invalid Google ID Token obtained from code exchange.");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+
+            logger.info("Google Token exchange successful for email: {}", email);
+
+            User user = userRepository.findByEmail(email)
+                    .orElseGet(() -> {
+                        logger.info("User with email {} not found. Creating a new account from Google login.", email);
+                        User newUser = new User();
+                        newUser.setEmail(email);
+                        newUser.setName(name);
+                        newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                        newUser.setActive(true);
+                        newUser.setPoint(0);
+                        Badge badge = badgeRepository.findById(1L)
+                                .orElseThrow(
+                                        () -> new ResourceNotFoundException("Badge not found with id: " + 1L));
+                        newUser.setBadge(badge);
+
+                        Role role = roleRepository.findById(2L)
+                                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + 2L));
+                        newUser.setRole(role);
+
+                        Role userRole = roleRepository.findByName("USER")
+                                .orElseThrow(() -> new RuntimeException("Default 'USER' role not found."));
+                        newUser.setRole(userRole);
+                        return userRepository.save(newUser);
+                    });
+
+            ResLoginDTO res = new ResLoginDTO();
+            ResLoginDTO.UserLogin userLoginDTO = buildUserLoginDTO(user);
+            res.setUser(userLoginDTO);
+
+            String accessToken = this.securityUtil.createAccessToken(user.getEmail(), res);
+            res.setAccessToken(accessToken);
+
+            return res;
+
+        } catch (Exception e) {
+            logger.error("!!! Google ID Token verification failed !!!", e);
+            throw new BadRequestException("Failed to verify Google Token: " + e.getMessage());
+        }
+    }
+
+    private ResLoginDTO.UserLogin buildUserLoginDTO(User user) {
+        ResLoginDTO.UserLogin dto = new ResLoginDTO.UserLogin(user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getRole(),
+                user.getStreakCount(),
+                user.getPoint(),
+                user.getBadge());
         return dto;
     }
 
@@ -500,20 +605,14 @@ public class UserService implements UserDetailsService {
         newUser.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
         newUser.setActive(true);
         newUser.setPoint(0);
+        Badge badge = badgeRepository.findById(1L)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Badge not found with id: " + 1L));
+        newUser.setBadge(badge);
 
-        Long roleIdToAssign = registerDTO.getRoleId();
-        Role assignedRole;
-
-        if (roleIdToAssign == null) {
-            assignedRole = roleRepository.findByName("USER")
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Default role 'USER' not found. Please ensure it exists in the database."));
-        } else {
-
-            assignedRole = roleRepository.findById(roleIdToAssign)
-                    .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + roleIdToAssign));
-        }
-        newUser.setRole(assignedRole);
+        Role userRole = roleRepository.findByName("USER")
+                .orElseThrow(() -> new RuntimeException("Default 'USER' role not found."));
+        newUser.setRole(userRole);
 
         User savedUser = userRepository.save(newUser);
         logger.info("Successfully registered new user with ID: {}", savedUser.getId());
@@ -676,4 +775,5 @@ public class UserService implements UserDetailsService {
         dto.setDurationInDays(plan.getDurationInDays());
         return dto;
     }
+
 }

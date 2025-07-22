@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.request.auth.GoogleLoginRequestDTO;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.auth.ReqLoginDTO;
 import com.fourstars.FourStars.domain.response.auth.ResLoginDTO;
@@ -125,6 +126,30 @@ public class AuthController {
                 return ResponseEntity.ok()
                                 .header(HttpHeaders.SET_COOKIE, resCookies.toString())
                                 .body(res);
+        }
+
+        @Operation(summary = "Handle Google OAuth2 Login", description = "Receives the authorization code from frontend, validates it with Google, and returns app-specific JWTs.")
+        @PostMapping("/auth/google")
+        @ApiMessage("Handle Google OAuth2 login callback")
+        public ResponseEntity<ResLoginDTO> loginWithGoogle(@RequestBody GoogleLoginRequestDTO requestDTO)
+                        throws Exception {
+                ResLoginDTO loginResponse = userService.loginWithGoogle(requestDTO.getCode());
+
+                String refreshToken = this.securityUtil.createRefreshToken(loginResponse.getUser().getEmail(),
+                                loginResponse);
+                this.userService.updateUserToken(refreshToken, loginResponse.getUser().getEmail());
+
+                ResponseCookie resCookies = ResponseCookie
+                                .from("refresh_token", refreshToken)
+                                .httpOnly(true)
+                                .secure(true)
+                                .path("/api/v1/auth")
+                                .maxAge(refreshTokenExpiration)
+                                .build();
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.SET_COOKIE, resCookies.toString())
+                                .body(loginResponse);
         }
 
         @Operation(summary = "Get Current User Account", description = "Fetches the profile information of the currently authenticated user based on their token.")
