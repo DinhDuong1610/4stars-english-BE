@@ -32,6 +32,7 @@ import com.fourstars.FourStars.domain.request.quiz.QuestionDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.request.quiz.SubmitQuizRequestDTO;
 import com.fourstars.FourStars.domain.request.quiz.UserAnswerRequestDTO;
+import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuestionAnswerDetailDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuestionChoiceForUserDTO;
@@ -315,6 +316,17 @@ public class QuizService {
             attempt.getUserAnswers().add(userAnswer);
             logger.debug("Scoring question {}: user answer is correct? {}", ansReq.getQuestionId(), isCorrect);
 
+            if (question.getRelatedVocabulary() != null) {
+                int quality = isCorrect ? 5 : 2;
+                SubmitReviewRequestDTO reviewDTO = new SubmitReviewRequestDTO(question.getRelatedVocabulary().getId(),
+                        quality);
+                try {
+                    vocabularyService.submitVocabularyReview(reviewDTO, currentUser);
+                } catch (Exception e) {
+                    logger.error("Could not auto-submit review for vocab ID {}",
+                            question.getRelatedVocabulary().getId(), e);
+                }
+            }
         }
 
         attempt.setScore(totalScore);
@@ -324,23 +336,6 @@ public class QuizService {
         UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
         logger.info("Scoring complete for attempt ID: {}. Final score: {}", savedAttempt.getId(),
                 savedAttempt.getScore());
-
-        Set<Long> relatedVocabularyIds = new HashSet<>();
-        for (UserAnswer answer : savedAttempt.getUserAnswers()) {
-            if (answer.getQuestion().getRelatedVocabulary() != null) {
-                relatedVocabularyIds.add(answer.getQuestion().getRelatedVocabulary().getId());
-            }
-        }
-
-        relatedVocabularyIds.forEach(vocabId -> {
-            try {
-                vocabularyService.addVocabularyToNotebook(currentUser.getId(), vocabId);
-            } catch (Exception e) {
-                System.err.println("Could not add vocabulary " + vocabId + " to notebook. Error: " + e.getMessage());
-            }
-        });
-        logger.info("Adding {} related vocabularies to notebook for user {}", relatedVocabularyIds.size(),
-                currentUser.getId());
 
         QuizResultMessage resultMessage = new QuizResultMessage(
                 savedAttempt.getUser().getId(),
