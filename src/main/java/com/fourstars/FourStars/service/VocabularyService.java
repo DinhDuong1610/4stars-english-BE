@@ -309,17 +309,26 @@ public class VocabularyService {
     }
 
     @Transactional
-    public UserVocabulary submitVocabularyReview(SubmitReviewRequestDTO reviewDTO)
-            throws ResourceNotFoundException {
+    public UserVocabulary submitVocabularyReview(SubmitReviewRequestDTO reviewDTO) {
         User user = getCurrentAuthenticatedUser();
         logger.info("User '{}' submitting review for vocabulary ID: {} with quality: {}",
                 user.getEmail(), reviewDTO.getVocabularyId(), reviewDTO.getQuality());
+        return processReview(user, reviewDTO);
+    }
+
+    @Transactional
+    public UserVocabulary submitVocabularyReview(SubmitReviewRequestDTO reviewDTO, User user) {
+        logger.info("System submitting auto-review for vocabulary ID: {} with quality: {} on behalf of user '{}'",
+                reviewDTO.getVocabularyId(), reviewDTO.getQuality(), user.getEmail());
+        return processReview(user, reviewDTO);
+    }
+
+    private UserVocabulary processReview(User user, SubmitReviewRequestDTO reviewDTO) {
         Long vocabularyId = reviewDTO.getVocabularyId();
 
         UserVocabularyId userVocabularyId = new UserVocabularyId(user.getId(), vocabularyId);
         Optional<UserVocabulary> optionalUserVocabulary = userVocabularyRepository.findById(userVocabularyId);
         UserVocabulary userVocabulary;
-
         if (optionalUserVocabulary.isPresent()) {
             userVocabulary = optionalUserVocabulary.get();
         } else {

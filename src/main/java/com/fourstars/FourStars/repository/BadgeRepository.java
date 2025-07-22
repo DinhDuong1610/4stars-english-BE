@@ -15,4 +15,6 @@ public interface BadgeRepository extends JpaRepository<Badge, Long>, JpaSpecific
     boolean existsByName(String name);
 
     boolean existsByNameAndIdNot(String name, Long id);
+
+    Optional<Badge> findTopByPointLessThanEqualOrderByPointDesc(Integer userPoints);
 }

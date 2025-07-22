@@ -32,6 +32,7 @@ import com.fourstars.FourStars.domain.request.quiz.QuestionDTO;
 import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.request.quiz.SubmitQuizRequestDTO;
 import com.fourstars.FourStars.domain.request.quiz.UserAnswerRequestDTO;
+import com.fourstars.FourStars.domain.request.vocabulary.SubmitReviewRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuestionAnswerDetailDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuestionChoiceForUserDTO;
@@ -65,13 +66,14 @@ public class QuizService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
+    private final UserService userService;
     private final RabbitTemplate rabbitTemplate;
     private VocabularyService vocabularyService;
 
     public QuizService(QuizRepository quizRepository, QuestionRepository questionRepository,
             UserQuizAttemptRepository userQuizAttemptRepository, UserRepository userRepository,
             CategoryRepository categoryRepository, VocabularyRepository vocabularyRepository,
-            RabbitTemplate rabbitTemplate) {
+            RabbitTemplate rabbitTemplate, UserService userService) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
         this.userQuizAttemptRepository = userQuizAttemptRepository;
@@ -79,6 +81,7 @@ public class QuizService {
         this.categoryRepository = categoryRepository;
         this.vocabularyRepository = vocabularyRepository;
         this.rabbitTemplate = rabbitTemplate;
+        this.userService = userService;
     }
 
     @Autowired
@@ -315,32 +318,35 @@ public class QuizService {
             attempt.getUserAnswers().add(userAnswer);
             logger.debug("Scoring question {}: user answer is correct? {}", ansReq.getQuestionId(), isCorrect);
 
+            if (question.getRelatedVocabulary() != null) {
+                int quality = isCorrect ? 5 : 2;
+                SubmitReviewRequestDTO reviewDTO = new SubmitReviewRequestDTO(question.getRelatedVocabulary().getId(),
+                        quality);
+                try {
+                    vocabularyService.submitVocabularyReview(reviewDTO, currentUser);
+                } catch (Exception e) {
+                    logger.error("Could not auto-submit review for vocab ID {}",
+                            question.getRelatedVocabulary().getId(), e);
+                }
+            }
         }
 
         attempt.setScore(totalScore);
         attempt.setStatus(QuizStatus.COMPLETED);
         attempt.setCompletedAt(Instant.now());
 
+        if (totalScore > 0) {
+            int currentPoints = currentUser.getPoint();
+            currentUser.setPoint(currentPoints + totalScore);
+            logger.info("Added {} points to user '{}'. New total points: {}", totalScore, currentUser.getEmail(),
+                    currentUser.getPoint());
+
+            userService.checkAndAwardBadge(currentUser);
+        }
+
         UserQuizAttempt savedAttempt = userQuizAttemptRepository.save(attempt);
         logger.info("Scoring complete for attempt ID: {}. Final score: {}", savedAttempt.getId(),
                 savedAttempt.getScore());
-
-        Set<Long> relatedVocabularyIds = new HashSet<>();
-        for (UserAnswer answer : savedAttempt.getUserAnswers()) {
-            if (answer.getQuestion().getRelatedVocabulary() != null) {
-                relatedVocabularyIds.add(answer.getQuestion().getRelatedVocabulary().getId());
-            }
-        }
-
-        relatedVocabularyIds.forEach(vocabId -> {
-            try {
-                vocabularyService.addVocabularyToNotebook(currentUser.getId(), vocabId);
-            } catch (Exception e) {
-                System.err.println("Could not add vocabulary " + vocabId + " to notebook. Error: " + e.getMessage());
-            }
-        });
-        logger.info("Adding {} related vocabularies to notebook for user {}", relatedVocabularyIds.size(),
-                currentUser.getId());
 
         QuizResultMessage resultMessage = new QuizResultMessage(
                 savedAttempt.getUser().getId(),

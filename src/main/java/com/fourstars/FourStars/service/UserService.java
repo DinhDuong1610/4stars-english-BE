@@ -639,6 +639,20 @@ public class UserService implements UserDetailsService {
         return dashboard;
     }
 
+    @Transactional
+    public void checkAndAwardBadge(User user) {
+        Badge bestBadge = badgeRepository.findTopByPointLessThanEqualOrderByPointDesc(user.getPoint()).orElse(null);
+
+        if (bestBadge != null && !bestBadge.equals(user.getBadge())) {
+            logger.info("Awarding new badge '{}' to user '{}'. Old badge was: '{}'",
+                    bestBadge.getName(),
+                    user.getEmail(),
+                    user.getBadge() != null ? user.getBadge().getName() : "None");
+
+            user.setBadge(bestBadge);
+        }
+    }
+
     private User getCurrentAuthenticatedUser() {
         return userRepository.findByEmail(securityUtil.getCurrentUserLogin()
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"))).orElse(null);
