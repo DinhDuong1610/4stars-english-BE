@@ -2,6 +2,7 @@ package com.fourstars.FourStars.controller.client;
 
 import java.util.Map;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,9 +11,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fourstars.FourStars.domain.request.quiz.QuizDTO;
 import com.fourstars.FourStars.domain.request.quiz.SubmitQuizRequestDTO;
+import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuizAttemptResponseDTO;
 import com.fourstars.FourStars.domain.response.quiz.QuizForUserAttemptDTO;
 import com.fourstars.FourStars.service.QuizService;
@@ -75,5 +79,26 @@ public class QuizController {
     @PreAuthorize("hasPermission(null, null)")
     public ResponseEntity<QuizAttemptResponseDTO> getQuizResult(@PathVariable long attemptId) {
         return ResponseEntity.ok(quizService.getQuizResult(attemptId));
+    }
+
+    @Operation(summary = "Get a quiz by ID for editing", description = "Retrieves the full details of a quiz, including all questions and correct answer information.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved quiz details"),
+            @ApiResponse(responseCode = "404", description = "Quiz not found")
+    })
+    @GetMapping("/{id}")
+    @ApiMessage("Get a quiz by id for admin")
+    public ResponseEntity<QuizDTO> getQuizById(@PathVariable("id") long id) {
+        return ResponseEntity.ok(quizService.getQuizForAdmin(id));
+    }
+
+    @Operation(summary = "Get all quizzes with pagination")
+    @GetMapping
+    @ApiMessage("Get all quizzes for admin with filtering")
+    public ResponseEntity<ResultPaginationDTO<QuizDTO>> getAllQuizzes(
+            Pageable pageable,
+            @RequestParam(name = "categoryId", required = false) Long categoryId) {
+
+        return ResponseEntity.ok(quizService.getAllQuizzesForAdmin(pageable, categoryId));
     }
 }
