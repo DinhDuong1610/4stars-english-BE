@@ -67,6 +67,8 @@ public class SecurityConfiguration {
                 "/api/v1/auth/google",
                 "/api/v1/auth/register",
                 "/api/v1/auth/refresh",
+                "auth/forgot-password",
+                "auth/reset-password",
                 "/api/v1/payments/**",
                 "/uploads/**",
                 "/ws/**",
