@@ -23,9 +23,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fourstars.FourStars.domain.User;
+import com.fourstars.FourStars.domain.request.auth.ForgotPasswordRequestDTO;
 import com.fourstars.FourStars.domain.request.auth.GoogleLoginRequestDTO;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
 import com.fourstars.FourStars.domain.request.auth.ReqLoginDTO;
+import com.fourstars.FourStars.domain.request.auth.ResetPasswordRequestDTO;
 import com.fourstars.FourStars.domain.response.auth.ResLoginDTO;
 import com.fourstars.FourStars.domain.response.user.UserResponseDTO;
 import com.fourstars.FourStars.service.UserService;
@@ -284,5 +286,21 @@ public class AuthController {
                         throws DuplicateResourceException, ResourceNotFoundException {
                 UserResponseDTO newUserInfo = this.userService.registerNewUser(registerDTO);
                 return ResponseEntity.status(HttpStatus.CREATED).body(newUserInfo);
+        }
+
+        @Operation(summary = "Request a password reset OTP", description = "Sends a One-Time Password to the user's email if the account exists.")
+        @PostMapping("auth/forgot-password")
+        @ApiMessage("Password reset OTP has been sent to your email if it exists in our system.")
+        public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO requestDTO) {
+                userService.handleForgotPassword(requestDTO);
+                return ResponseEntity.ok().build();
+        }
+
+        @Operation(summary = "Reset password using OTP")
+        @PostMapping("auth/reset-password")
+        @ApiMessage("Password has been successfully reset.")
+        public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO requestDTO) {
+                userService.handleResetPassword(requestDTO);
+                return ResponseEntity.ok().build();
         }
 }

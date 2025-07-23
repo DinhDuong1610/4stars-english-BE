@@ -15,14 +15,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -38,7 +41,9 @@ import com.fourstars.FourStars.domain.Role;
 import com.fourstars.FourStars.domain.Subscription;
 import com.fourstars.FourStars.domain.User;
 import com.fourstars.FourStars.domain.UserVocabulary;
+import com.fourstars.FourStars.domain.request.auth.ForgotPasswordRequestDTO;
 import com.fourstars.FourStars.domain.request.auth.RegisterRequestDTO;
+import com.fourstars.FourStars.domain.request.auth.ResetPasswordRequestDTO;
 import com.fourstars.FourStars.domain.request.user.ChangePasswordRequestDTO;
 import com.fourstars.FourStars.domain.request.user.CreateUserRequestDTO;
 import com.fourstars.FourStars.domain.request.user.UpdateUserRequestDTO;
@@ -90,6 +95,8 @@ public class UserService implements UserDetailsService {
     private final SubscriptionRepository subscriptionRepository;
     private final SecurityUtil securityUtil;
     private final CacheManager cacheManager;
+    private final EmailService emailService;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String googleClientId;
@@ -108,7 +115,8 @@ public class UserService implements UserDetailsService {
             UserQuizAttemptRepository userQuizAttemptRepository,
             PlanRepository planRepository,
             SubscriptionRepository subscriptionRepository,
-            SecurityUtil securityUtil, CacheManager cacheManager) {
+            SecurityUtil securityUtil, CacheManager cacheManager,
+            EmailService emailService, RedisTemplate<String, String> redisTemplate) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.badgeRepository = badgeRepository;
@@ -119,6 +127,8 @@ public class UserService implements UserDetailsService {
         this.subscriptionRepository = subscriptionRepository;
         this.securityUtil = securityUtil;
         this.cacheManager = cacheManager;
+        this.emailService = emailService;
+        this.redisTemplate = redisTemplate;
     }
 
     private UserResponseDTO convertToUserResponseDTO(User user) {
@@ -750,6 +760,46 @@ public class UserService implements UserDetailsService {
 
             user.setBadge(bestBadge);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public void handleForgotPassword(ForgotPasswordRequestDTO requestDTO) {
+        String email = requestDTO.getEmail();
+        logger.info("Forgot password request received for email: {}", email);
+
+        userRepository.findByEmail(email).ifPresent(user -> {
+            String otp = String.format("%06d", new Random().nextInt(999999));
+            String redisKey = "otp:" + email;
+
+            redisTemplate.opsForValue().set(redisKey, otp, 5, TimeUnit.MINUTES);
+            logger.debug("Saved OTP for email {} to Redis. Key: {}", email, redisKey);
+
+            emailService.sendOtpEmail(email, otp);
+        });
+    }
+
+    @Transactional
+    public void handleResetPassword(ResetPasswordRequestDTO requestDTO) {
+        String email = requestDTO.getEmail();
+        String otp = requestDTO.getOtp();
+        String redisKey = "otp:" + email;
+
+        logger.info("Reset password attempt for email: {}", email);
+
+        String storedOtp = redisTemplate.opsForValue().get(redisKey);
+
+        if (storedOtp == null || !storedOtp.equals(otp)) {
+            throw new BadRequestException("Invalid or expired OTP.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+        user.setPassword(passwordEncoder.encode(requestDTO.getNewPassword()));
+        userRepository.save(user);
+        logger.info("Successfully reset password for user: {}", email);
+
+        redisTemplate.delete(redisKey);
     }
 
     private User getCurrentAuthenticatedUser() {
