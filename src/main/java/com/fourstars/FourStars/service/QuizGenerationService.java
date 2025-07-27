@@ -202,14 +202,18 @@ public class QuizGenerationService {
 
         for (Vocabulary vocab : vocabularies) {
             List<Optional<QuestionDTO>> questionFactories = new ArrayList<>();
-            questionFactories.add(generateFillInTheBlank(vocab));
-            questionFactories.add(generateMultipleChoiceText(vocab));
-            questionFactories.add(generateMultipleChoiceImage(vocab));
-            questionFactories.add(generateListeningComprehension(vocab));
+            if (vocab.getExampleEn().length() > 0) {
+                questionFactories.add(generateFillInTheBlank(vocab));
+                questionFactories.add(generateMultipleChoiceText(vocab));
+            }
+            // questionFactories.add(generateMultipleChoiceImage(vocab));
+            if (vocab.getAudio() != null) {
+                questionFactories.add(generateListeningComprehension(vocab));
+            }
 
             Collections.shuffle(questionFactories);
 
-            int count = numberOfQuestions;
+            int count = questionFactories.size() < numberOfQuestions ? questionFactories.size() : numberOfQuestions;
 
             for (Optional<QuestionDTO> questionOpt : questionFactories) {
                 if (questionOpt.isPresent()) {
