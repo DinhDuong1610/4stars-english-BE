@@ -3,6 +3,7 @@ package com.fourstars.FourStars.controller.admin;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,5 +54,15 @@ public class DictationController {
             @Parameter(description = "ID of the topic to update") @PathVariable long id,
             @Valid @RequestBody DictationTopicRequestDTO requestDTO) {
         return ResponseEntity.ok(dictationService.updateDictationTopic(id, requestDTO));
+    }
+
+    @Operation(summary = "Delete a dictation topic")
+    @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Topic deleted successfully") })
+    @DeleteMapping("/{id}")
+    @ApiMessage("Delete a dictation topic")
+    public ResponseEntity<Void> deleteDictationTopic(
+            @Parameter(description = "ID of the topic to delete") @PathVariable long id) {
+        dictationService.deleteDictationTopic(id);
+        return ResponseEntity.noContent().build();
     }
 }

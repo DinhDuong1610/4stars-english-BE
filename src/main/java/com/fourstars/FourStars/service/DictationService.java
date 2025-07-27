@@ -84,6 +84,16 @@ public class DictationService {
         return convertToAdminDTO(updatedTopic);
     }
 
+    @Transactional
+    public void deleteDictationTopic(long topicId) {
+        logger.info("Admin deleting dictation topic with ID: {}", topicId);
+        if (!topicRepository.existsById(topicId)) {
+            throw new ResourceNotFoundException("Dictation topic not found with id: " + topicId);
+        }
+        topicRepository.deleteById(topicId);
+        logger.info("Successfully deleted dictation topic with ID: {}", topicId);
+    }
+
     private DictationTopicResponseDTO convertToUserResponseDTO(DictationTopic topic) {
         DictationTopicResponseDTO topicDto = new DictationTopicResponseDTO();
         topicDto.setId(topic.getId());
