@@ -27,7 +27,8 @@ public class NlpApiService {
     }
 
     public NlpAnalysisResponse getAnalysis(String userText, String correctText) {
-        logger.debug("Sending text to NLP API for analysis. User text length: {}", userText.length());
+        logger.info("Attempting to call NLP API at URL: {}", nlpApiUrl);
+        logger.debug("Sending payload: user_text='{}', correct_text='{}'", userText, correctText);
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -41,11 +42,16 @@ public class NlpApiService {
 
             NlpAnalysisResponse response = restTemplate.postForObject(nlpApiUrl, request, NlpAnalysisResponse.class);
 
-            logger.debug("Received NLP analysis with score: {}", response != null ? response.getScore() : "N/A");
+            if (response == null) {
+                logger.error("Received a NULL response from NLP API.");
+                return null;
+            }
+
+            logger.info("Successfully received analysis from NLP API. Score: {}", response.getScore());
             return response;
 
         } catch (Exception e) {
-            logger.error("Error calling NLP API at {}", nlpApiUrl, e);
+            logger.error("!!! FAILED to call NLP API at {} !!!", nlpApiUrl, e);
             return null;
         }
     }

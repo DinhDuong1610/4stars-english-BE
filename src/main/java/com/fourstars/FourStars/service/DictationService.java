@@ -21,6 +21,7 @@ import com.fourstars.FourStars.domain.request.dictation.DictationTopicRequestDTO
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.dictation.DictationSentenceResponseDTO;
 import com.fourstars.FourStars.domain.response.dictation.DictationTopicResponseDTO;
+import com.fourstars.FourStars.domain.response.dictation.NlpAnalysisResponse;
 import com.fourstars.FourStars.repository.CategoryRepository;
 import com.fourstars.FourStars.repository.DictationSentenceRepository;
 import com.fourstars.FourStars.repository.DictationTopicRepository;
@@ -214,6 +215,15 @@ public class DictationService {
         DictationTopic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Dictation topic not found with id: " + topicId));
         return convertToUserResponseDTO(topic, true);
+    }
+
+    @Transactional(readOnly = true)
+    public NlpAnalysisResponse submitAndAnalyze(long sentenceId, String userText) {
+        logger.info("User submitting answer for sentence ID: {}", sentenceId);
+        DictationSentence sentence = sentenceRepository.findById(sentenceId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Dictation sentence not found with id: " + sentenceId));
+        return nlpApiService.getAnalysis(userText, sentence.getCorrectText());
     }
 
     private DictationTopicResponseDTO convertToUserResponseDTO(DictationTopic topic, boolean includeSentences) {
