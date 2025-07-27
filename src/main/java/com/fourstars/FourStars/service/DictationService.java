@@ -22,6 +22,7 @@ import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.dictation.DictationSentenceResponseDTO;
 import com.fourstars.FourStars.domain.response.dictation.DictationTopicResponseDTO;
 import com.fourstars.FourStars.repository.CategoryRepository;
+import com.fourstars.FourStars.repository.DictationSentenceRepository;
 import com.fourstars.FourStars.repository.DictationTopicRepository;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
@@ -33,11 +34,17 @@ public class DictationService {
 
     private final DictationTopicRepository topicRepository;
     private final CategoryRepository categoryRepository;
+    private final DictationSentenceRepository sentenceRepository;
+    private final NlpApiService nlpApiService;
 
     public DictationService(DictationTopicRepository topicRepository,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            DictationSentenceRepository sentenceRepository,
+            NlpApiService nlpApiService) {
         this.topicRepository = topicRepository;
         this.categoryRepository = categoryRepository;
+        this.sentenceRepository = sentenceRepository;
+        this.nlpApiService = nlpApiService;
     }
 
     @Transactional
@@ -156,7 +163,60 @@ public class DictationService {
         return new ResultPaginationDTO<>(meta, dtoList);
     }
 
-    private DictationTopicResponseDTO convertToUserResponseDTO(DictationTopic topic) {
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO<DictationTopicResponseDTO> fetchAllTopicsForUser(
+            Pageable pageable,
+            Long categoryId,
+            String title,
+            LocalDate startCreatedAt,
+            LocalDate endCreatedAt) {
+        logger.debug("Fetching all dictation topics with filters");
+
+        Specification<DictationTopic> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (title != null && !title.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("title")),
+                        "%" + title.trim().toLowerCase() + "%"));
+            }
+            if (startCreatedAt != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"),
+                        startCreatedAt.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            }
+            if (endCreatedAt != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"),
+                        endCreatedAt.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant()));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<DictationTopic> topicPage = topicRepository.findAll(spec, pageable);
+
+        List<DictationTopicResponseDTO> dtoList = topicPage.getContent().stream()
+                .map(topic -> convertToUserResponseDTO(topic, false))
+                .collect(Collectors.toList());
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
+                topicPage.getNumber() + 1,
+                topicPage.getSize(),
+                topicPage.getTotalPages(),
+                topicPage.getTotalElements());
+        return new ResultPaginationDTO<>(meta, dtoList);
+    }
+
+    @Transactional(readOnly = true)
+    public DictationTopicResponseDTO getDictationTopicForUser(long topicId) {
+        logger.debug("User fetching dictation topic with ID: {}", topicId);
+        DictationTopic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new ResourceNotFoundException("Dictation topic not found with id: " + topicId));
+        return convertToUserResponseDTO(topic, true);
+    }
+
+    private DictationTopicResponseDTO convertToUserResponseDTO(DictationTopic topic, boolean includeSentences) {
         DictationTopicResponseDTO topicDto = new DictationTopicResponseDTO();
         topicDto.setId(topic.getId());
         topicDto.setTitle(topic.getTitle());
@@ -171,18 +231,18 @@ public class DictationService {
         topicDto.setUpdatedAt(topic.getUpdatedAt());
         topicDto.setCreatedBy(topic.getCreatedBy());
         topicDto.setUpdatedBy(topic.getUpdatedBy());
-
-        List<DictationSentenceResponseDTO> sentenceDtos = topic.getSentences().stream()
-                .map(sentence -> {
-                    DictationSentenceResponseDTO sentenceDto = new DictationSentenceResponseDTO();
-                    sentenceDto.setId(sentence.getId());
-                    sentenceDto.setAudioUrl(sentence.getAudioUrl());
-                    sentenceDto.setOrderIndex(sentence.getOrderIndex());
-                    return sentenceDto;
-                })
-                .collect(Collectors.toList());
-
-        topicDto.setSentences(sentenceDtos);
+        if (includeSentences) {
+            List<DictationSentenceResponseDTO> sentenceDtos = topic.getSentences().stream()
+                    .map(sentence -> {
+                        DictationSentenceResponseDTO sentenceDto = new DictationSentenceResponseDTO();
+                        sentenceDto.setId(sentence.getId());
+                        sentenceDto.setAudioUrl(sentence.getAudioUrl());
+                        sentenceDto.setOrderIndex(sentence.getOrderIndex());
+                        return sentenceDto;
+                    })
+                    .collect(Collectors.toList());
+            topicDto.setSentences(sentenceDtos);
+        }
         return topicDto;
     }
 
