@@ -56,6 +56,34 @@ public class DictationService {
         return convertToAdminDTO(savedTopic);
     }
 
+    @Transactional
+    public DictationTopicResponseDTO updateDictationTopic(long topicId, DictationTopicRequestDTO requestDTO) {
+        logger.info("Admin updating dictation topic with ID: {}", topicId);
+        DictationTopic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new ResourceNotFoundException("Dictation topic not found with id: " + topicId));
+
+        Category category = categoryRepository.findById(requestDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found with id: " + requestDTO.getCategoryId()));
+
+        topic.setTitle(requestDTO.getTitle());
+        topic.setDescription(requestDTO.getDescription());
+        topic.setCategory(category);
+
+        topic.getSentences().clear();
+        requestDTO.getSentences().forEach(sentenceDTO -> {
+            DictationSentence sentence = new DictationSentence();
+            sentence.setAudioUrl(sentenceDTO.getAudioUrl());
+            sentence.setCorrectText(sentenceDTO.getCorrectText());
+            sentence.setOrderIndex(sentenceDTO.getOrderIndex());
+            topic.addSentence(sentence);
+        });
+
+        DictationTopic updatedTopic = topicRepository.save(topic);
+        logger.info("Successfully updated dictation topic with ID: {}", updatedTopic.getId());
+        return convertToAdminDTO(updatedTopic);
+    }
+
     private DictationTopicResponseDTO convertToUserResponseDTO(DictationTopic topic) {
         DictationTopicResponseDTO topicDto = new DictationTopicResponseDTO();
         topicDto.setId(topic.getId());
