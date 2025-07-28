@@ -214,7 +214,7 @@ public class DictationService {
         logger.debug("User fetching dictation topic with ID: {}", topicId);
         DictationTopic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Dictation topic not found with id: " + topicId));
-        return convertToUserResponseDTO(topic, true);
+        return convertToAdminDTO(topic);
     }
 
     @Transactional(readOnly = true)

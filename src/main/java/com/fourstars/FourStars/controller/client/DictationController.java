@@ -56,7 +56,6 @@ public class DictationController {
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success"),
             @ApiResponse(responseCode = "404", description = "Topic not found") })
     @GetMapping("/{id}")
-    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Get a specific dictation exercise")
     public ResponseEntity<DictationTopicResponseDTO> getTopicForUser(
             @Parameter(description = "ID of the topic to retrieve") @PathVariable long id) {
@@ -66,7 +65,6 @@ public class DictationController {
     @Operation(summary = "Submit a dictated sentence for analysis", description = "Submits a user's dictated text for a specific sentence to be analyzed by the NLP model.")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Analysis successful") })
     @PostMapping("/submit")
-    @PreAuthorize("hasPermission(null, null)")
     @ApiMessage("Submit a dictated sentence for analysis")
     public ResponseEntity<NlpAnalysisResponse> submitAnswer(@RequestBody DictationSubmissionDTO submissionDTO) {
         NlpAnalysisResponse analysis = dictationService.submitAndAnalyze(
