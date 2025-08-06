@@ -64,6 +64,7 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - TZ=Asia/Ho_Chi_Minh
       - SPRING_DATASOURCE_URL=jdbc:mysql://database:3306/four_stars_english?useSSL=false
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
@@ -75,7 +76,7 @@ services:
       - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
       - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
       - VNPAY_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-      - VNPAY_RETURN_URL=${APP_FRONTEND_URL}/payment-return
+      - VNPAY_RETURN_URL=${APP_FRONTEND_URL}/api/v1/payments/vnpay/return
       - VNPAY_IPN_URL=${APP_BACKEND_URL}/api/v1/payments/vnpay/ipn
       - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
