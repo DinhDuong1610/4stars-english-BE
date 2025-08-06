@@ -164,7 +164,7 @@ public class PostService {
         Post postToDelete = postRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
 
-        if (postToDelete.getUser().getId() != currentUser.getId()) {
+        if (postToDelete.getUser().getId() != currentUser.getId() && !currentUser.getRole().getName().equals("ADMIN")) {
             throw new BadRequestException("You do not have permission to delete this post.");
         }
 
