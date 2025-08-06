@@ -16,17 +16,48 @@
 
 Dưới đây là một vài hình ảnh về các tính năng chính của ứng dụng.
 
-#### Giao diện Học tập & Gamification
-<img src="./readme_imgs/review.png" width="49%">
-<img src="./readme_imgs/dictionary.png" width="49%">
-<img src="./readme_imgs/vocabulary.png" width="49%">
-<img src="./readme_imgs/quiz.png" width="49%">
-<img src="./readme_imgs/grammar.png" width="49%">
-<img src="./readme_imgs/notebook.png" width="49%">
-<img src="./readme_imgs/listenning.png" width="49%">
-<img src="./readme_imgs/video.png" width="49%">
-<img src="./readme_imgs/community.png" width="49%">
-<img src="./readme_imgs/store.png" width="49%">
+<table>
+  <tr>
+    <td align="center"><b>Giao diện Ôn tập</b></td>
+    <td align="center"><b>Giao diện Từ điển</b></td>
+  </tr>
+  <tr>
+    <td><img src="./readme_imgs/review.png" width="100%"></td>
+    <td><img src="./readme_imgs/dictionary.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Trang Từ vựng</b></td>
+    <td align="center"><b>Trang Quiz</b></td>
+  </tr>
+  <tr>
+    <td><img src="./readme_imgs/vocabulary.png" width="100%"></td>
+    <td><img src="./readme_imgs/quiz.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Trang Ngữ pháp</b></td>
+    <td align="center"><b>Sổ tay Cá nhân</b></td>
+  </tr>
+    <tr>
+    <td><img src="./readme_imgs/grammar.png" width="100%"></td>
+    <td><img src="./readme_imgs/notebook.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Trang Luyện nghe</b></td>
+    <td align="center"><b>Trang Video</b></td>
+  </tr>
+  <tr>
+    <td><img src="./readme_imgs/listenning.png" width="100%"></td>
+    <td><img src="./readme_imgs/video.png" width="100%"></td>
+  </tr>
+    <tr>
+    <td align="center"><b>Trang cộng đồng</b></td>
+    <td align="center"><b>Trang nâng cấp tài khoản</b></td>
+  </tr>
+  <tr>
+    <td><img src="./readme_imgs/community.png" width="100%"></td>
+    <td><img src="./readme_imgs/store.png" width="100%"></td>
+  </tr>
+</table>
 
 
 ## 🏛️ Kiến trúc Hệ thống
