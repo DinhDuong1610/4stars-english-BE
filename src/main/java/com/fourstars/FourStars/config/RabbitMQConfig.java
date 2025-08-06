@@ -27,6 +27,12 @@ public class RabbitMQConfig {
     public static final String VOCABULARY_CREATED_QUEUE = "q.vocabulary.created";
     public static final String VOCABULARY_CREATED_ROUTING_KEY = "vocabulary.created";
 
+    public static final String POST_BROADCAST_EXCHANGE = "post_broadcast_exchange";
+    public static final String POST_LIKE_UPDATE_QUEUE = "q.post.like_update";
+    public static final String POST_LIKE_UPDATE_ROUTING_KEY = "post.like.update";
+    public static final String POST_NEW_COMMENT_QUEUE = "q.post.new_comment";
+    public static final String POST_NEW_COMMENT_ROUTING_KEY = "post.comment.new";
+
     @Bean
     public TopicExchange userActivityExchange() {
         return new TopicExchange(USER_ACTIVITY_EXCHANGE);
@@ -99,5 +105,36 @@ public class RabbitMQConfig {
                 .bind(vocabularyCreatedQueue())
                 .to(vocabularyEventExchange())
                 .with(VOCABULARY_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public TopicExchange postBroadcastExchange() {
+        return new TopicExchange(POST_BROADCAST_EXCHANGE);
+    }
+
+    @Bean
+    public Queue postLikeUpdateQueue() {
+        return new Queue(POST_LIKE_UPDATE_QUEUE, true);
+    }
+
+    @Bean
+    public Binding postLikeUpdateBinding() {
+        return BindingBuilder
+                .bind(postLikeUpdateQueue())
+                .to(postBroadcastExchange())
+                .with(POST_LIKE_UPDATE_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue postNewCommentQueue() {
+        return new Queue(POST_NEW_COMMENT_QUEUE, true);
+    }
+
+    @Bean
+    public Binding postNewCommentBinding() {
+        return BindingBuilder
+                .bind(postNewCommentQueue())
+                .to(postBroadcastExchange())
+                .with(POST_NEW_COMMENT_ROUTING_KEY);
     }
 }
