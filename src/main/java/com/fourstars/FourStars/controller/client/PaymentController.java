@@ -77,7 +77,7 @@ public class PaymentController {
     public RedirectView handleVNPayReturn(@RequestParam Map<String, String> allParams)
             throws UnsupportedEncodingException {
         String vnp_ResponseCode = allParams.get("vnp_ResponseCode");
-        String frontendReturnUrl = "http://localhost:5173/store"; // URL frontend của bạn
+        String frontendReturnUrl = "https://fourstars.tech/store"; // URL frontend của bạn
 
         // Cái này chỉ để test vì /vnpay/ipn chưa hoạt động, chưa deploy
         paymentService.handleVNPayTest(allParams);

@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  database:
+    image: mysql:8.0
+    platform: linux/amd64
+    container_name: fourstars-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: four_stars_english
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${DB_ROOT_PASSWORD}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:latest
+    container_name: fourstars-redis
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fourstars-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "15672:15672"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  nlp-api:
+    container_name: fourstars-nlp-api
+    build: ./fourstars_dication
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  app:
+    image: dinhduong1610/fourstars-app:latest
+    container_name: fourstars-app
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      nlp-api:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://database:3306/four_stars_english?useSSL=false
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - FOURSTARS_JWT_BASE64_SECRET=${JWT_SECRET}
+      - FOURSTARS_JWT_ACCESS_TOKEN_VALIDITY_IN_SECONDS=86400
+      - FOURSTARS_JWT_REFRESH_TOKEN_VALIDITY_IN_SECONDS=604800
+      - FOURSTARS_UPLOAD_DIR=/app/uploads/
+      - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
+      - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
+      - VNPAY_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      - VNPAY_RETURN_URL=${APP_FRONTEND_URL}/payment-return
+      - VNPAY_IPN_URL=${APP_BACKEND_URL}/api/v1/payments/vnpay/ipn
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - NLP_API_URL=${NLP_API_URL}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MYAPP_SCHEDULING_REMINDERS_CRON=0 0 8 * * *
+      - SPRING_MAIL_USERNAME=${GMAIL_USERNAME}
+      - SPRING_MAIL_PASSWORD=${GMAIL_APP_PASSWORD}
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQLDialect
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+
+
+networks:
+  app-network:
+    driver: bridge
