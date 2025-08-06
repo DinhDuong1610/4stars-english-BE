@@ -1,10 +1,12 @@
 package com.fourstars.FourStars.service;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,8 +25,10 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class RoleService {
+    private static final Logger logger = LoggerFactory.getLogger(RoleService.class);
+
     private final RoleRepository roleRepository;
-    private final PermissionRepository permissionRepository; // Inject PermissionRepository
+    private final PermissionRepository permissionRepository;
 
     public RoleService(RoleRepository roleRepository, PermissionRepository permissionRepository) {
         this.roleRepository = roleRepository;
@@ -62,6 +66,8 @@ public class RoleService {
 
     @Transactional
     public RoleResponseDTO createRole(RoleRequestDTO roleRequestDTO) throws DuplicateResourceException {
+        logger.info("Request to create new role with name: '{}'", roleRequestDTO.getName());
+
         if (roleRepository.existsByName(roleRequestDTO.getName())) {
             throw new DuplicateResourceException("Role name '" + roleRequestDTO.getName() + "' already exists.");
         }
@@ -72,16 +78,23 @@ public class RoleService {
         role.setActive(roleRequestDTO.isActive());
 
         if (roleRequestDTO.getPermissionIds() != null && !roleRequestDTO.getPermissionIds().isEmpty()) {
+            logger.debug("Assigning {} permissions to new role '{}'", roleRequestDTO.getPermissionIds().size(),
+                    roleRequestDTO.getName());
             List<Permission> permissions = permissionRepository.findAllById(roleRequestDTO.getPermissionIds());
             role.setPermissions(permissions);
         }
 
         Role savedRole = roleRepository.save(role);
+        logger.info("Successfully created new role with ID: {}", savedRole.getId());
+
         return convertToRoleResponseDTO(savedRole);
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "roles", key = "#id")
     public RoleResponseDTO fetchRoleById(long id) throws ResourceNotFoundException {
+        logger.debug("Request to fetch role by ID: {}", id);
+
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
         return convertToRoleResponseDTO(role);
@@ -89,13 +102,18 @@ public class RoleService {
 
     @Transactional(readOnly = true)
     public Role getRoleEntityById(long id) throws ResourceNotFoundException {
+        logger.debug("Request to fetch role ENTITY by ID: {}", id);
+
         return roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
     }
 
     @Transactional
+    @CacheEvict(value = "roles", key = "#id")
     public RoleResponseDTO updateRole(long id, RoleRequestDTO roleRequestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
+        logger.info("Request to update role with ID: {}", id);
+
         Role roleDB = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
 
@@ -110,19 +128,25 @@ public class RoleService {
         roleDB.setActive(roleRequestDTO.isActive());
 
         if (roleRequestDTO.getPermissionIds() != null) {
+            logger.debug("Updating permissions for role ID: {}. New permission count: {}", id,
+                    roleRequestDTO.getPermissionIds().size());
             List<Permission> newPermissions = permissionRepository.findAllById(roleRequestDTO.getPermissionIds());
-            roleDB.setPermissions(newPermissions); // Ghi đè danh sách permissions cũ
+            roleDB.setPermissions(newPermissions);
         } else {
+            logger.debug("Clearing all permissions for role ID: {}", id);
             roleDB.getPermissions().clear();
         }
 
         Role updatedRole = roleRepository.save(roleDB);
+        logger.info("Successfully updated role with ID: {}", updatedRole.getId());
 
         return convertToRoleResponseDTO(updatedRole);
     }
 
     @Transactional
+    @CacheEvict(value = "roles", key = "#id")
     public void deleteRole(long id) throws ResourceNotFoundException, DuplicateResourceException {
+        logger.info("Request to delete role with ID: {}", id);
         Role roleToDelete = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
 
@@ -130,14 +154,20 @@ public class RoleService {
             throw new DuplicateResourceException(
                     "Role '" + roleToDelete.getName() + "' is currently assigned to users and cannot be deleted.");
         }
+        logger.debug("Clearing all permissions from role {} before deletion.", id);
 
         roleToDelete.getPermissions().clear();
 
         roleRepository.delete(roleToDelete);
+        logger.info("Successfully deleted role with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<RoleResponseDTO> fetchAllRoles(Pageable pageable) {
+        logger.debug("Request to fetch all roles, page: {}, size: {}", pageable.getPageNumber(),
+                pageable.getPageSize());
+
         Page<Role> pageRole = roleRepository.findAll(pageable);
         List<RoleResponseDTO> roleDTOs = pageRole.getContent().stream()
                 .map(this::convertToRoleResponseDTO)

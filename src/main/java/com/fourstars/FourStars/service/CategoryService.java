@@ -8,6 +8,11 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -33,7 +38,10 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
+@CacheConfig(cacheNames = "categories")
 public class CategoryService {
+    private static final Logger logger = LoggerFactory.getLogger(CategoryService.class);
+
     private final CategoryRepository categoryRepository;
     private final VocabularyRepository vocabularyRepository;
     private final GrammarRepository grammarRepository;
@@ -81,8 +89,12 @@ public class CategoryService {
     }
 
     @Transactional
+    @CacheEvict(allEntries = true)
     public CategoryResponseDTO createCategory(CategoryRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
+        logger.info("Request to create new category with name: '{}', type: {}", requestDTO.getName(),
+                requestDTO.getType());
+
         if (categoryRepository.existsByNameAndTypeAndParentCategoryId(requestDTO.getName(), requestDTO.getType(),
                 requestDTO.getParentId())) {
             throw new DuplicateResourceException("A category with the same name, type, and parent already exists.");
@@ -102,19 +114,29 @@ public class CategoryService {
         }
 
         Category savedCategory = categoryRepository.save(category);
+
+        logger.info("Successfully created new category with ID: {}", savedCategory.getId());
+
         return convertToCategoryResponseDTO(savedCategory, false);
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(key = "#id")
     public CategoryResponseDTO fetchCategoryById(long id, boolean deep) throws ResourceNotFoundException {
+
+        logger.debug("Request to fetch category by ID: {}, deep fetch: {}", id, deep);
+
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
         return convertToCategoryResponseDTO(category, deep);
     }
 
     @Transactional
+    @CacheEvict(key = "#id", allEntries = true)
     public CategoryResponseDTO updateCategory(long id, CategoryRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException, BadRequestException {
+        logger.info("Request to update category with ID: {}", id);
+
         Category categoryDB = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
 
@@ -143,29 +165,30 @@ public class CategoryService {
         }
 
         Category updatedCategory = categoryRepository.save(categoryDB);
+
+        logger.info("Successfully updated category with ID: {}", updatedCategory.getId());
+
         return convertToCategoryResponseDTO(updatedCategory, false);
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<CategoryResponseDTO> fetchAllCategories(Pageable pageable, CategoryType type) {
-        // Tạo một Specification để xây dựng truy vấn động
+        logger.debug("Request to fetch top-level categories with type: {}", type);
+
         Specification<Category> spec = (root, query, criteriaBuilder) -> {
-            // Luôn lọc để chỉ lấy các danh mục không có cha (cấp cao nhất)
             Predicate topLevelPredicate = criteriaBuilder.isNull(root.get("parentCategory"));
 
-            // Nếu có tham số 'type' được truyền vào, thêm điều kiện lọc
             if (type != null) {
                 Predicate typePredicate = criteriaBuilder.equal(root.get("type"), type);
                 return criteriaBuilder.and(topLevelPredicate, typePredicate);
             }
 
-            // Nếu không, chỉ trả về các danh mục cấp cao nhất
             return topLevelPredicate;
         };
 
         Page<Category> pageCategory = categoryRepository.findAll(spec, pageable);
         List<CategoryResponseDTO> categoryDTOs = pageCategory.getContent().stream()
-                .map(cat -> convertToCategoryResponseDTO(cat, false)) // Lấy danh sách nông
+                .map(cat -> convertToCategoryResponseDTO(cat, false))
                 .collect(Collectors.toList());
 
         ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
@@ -173,12 +196,16 @@ public class CategoryService {
                 pageable.getPageSize(),
                 pageCategory.getTotalPages(),
                 pageCategory.getTotalElements());
+
+        logger.debug("Found {} top-level categories.", pageCategory.getTotalElements());
+
         return new ResultPaginationDTO<>(meta, categoryDTOs);
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<CategoryResponseDTO> fetchAllCategoriesAsTree(CategoryType type, Pageable pageable) {
-        // 1. Lấy tất cả danh mục khớp điều kiện lọc (nếu có)
+        logger.debug("Request to fetch all categories as a tree with type: {}", type);
+
         Specification<Category> spec = (root, query, cb) -> {
             if (type != null) {
                 return cb.equal(root.get("type"), type);
@@ -187,16 +214,14 @@ public class CategoryService {
         };
         List<Category> allCategories = categoryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "orderIndex"));
 
-        // 2. Chuyển đổi tất cả entity sang DTO và đưa vào Map để tra cứu nhanh
         Map<Long, CategoryResponseDTO> categoryMap = allCategories.stream()
-                .map(cat -> convertToCategoryResponseDTO(cat, false)) // Chuyển đổi dạng nông
+                .map(cat -> convertToCategoryResponseDTO(cat, false))
                 .collect(Collectors.toMap(
                         CategoryResponseDTO::getId,
                         Function.identity(),
                         (v1, v2) -> v1,
                         LinkedHashMap::new));
 
-        // 3. Xây dựng cấu trúc cây và tách ra danh sách các danh mục gốc (root)
         List<CategoryResponseDTO> rootCategories = new ArrayList<>();
         categoryMap.values().forEach(dto -> {
             if (dto.getParentId() != null) {
@@ -212,8 +237,6 @@ public class CategoryService {
             }
         });
 
-        // 4. Thực hiện phân trang thủ công trên danh sách các danh mục gốc đã được xây
-        // dựng
         long totalRootElements = rootCategories.size();
         int pageSize = pageable.getPageSize();
         int currentPage = pageable.getPageNumber();
@@ -228,19 +251,23 @@ public class CategoryService {
             paginatedRootCategories = rootCategories.subList(startItem, toIndex);
         }
 
-        // 5. Tạo đối tượng Meta cho việc phân trang
         ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta(
                 currentPage + 1,
                 pageSize,
-                (int) Math.ceil((double) totalRootElements / pageSize), // Tổng số trang của danh mục gốc
-                totalRootElements // Tổng số danh mục gốc
-        );
+                (int) Math.ceil((double) totalRootElements / pageSize),
+                totalRootElements);
+
+        logger.debug("Constructed tree with {} root categories.", paginatedRootCategories.size());
 
         return new ResultPaginationDTO<>(meta, paginatedRootCategories);
     }
 
     @Transactional
+    @CacheEvict(key = "#id", allEntries = true)
     public void deleteCategory(long id) throws ResourceNotFoundException, ResourceInUseException {
+
+        logger.info("Request to delete category with ID: {}", id);
+
         Category categoryToDelete = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
 
@@ -270,5 +297,8 @@ public class CategoryService {
         }
 
         categoryRepository.delete(categoryToDelete);
+
+        logger.info("Successfully deleted category with ID: {}", id);
+
     }
 }

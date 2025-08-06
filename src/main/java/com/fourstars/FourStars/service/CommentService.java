@@ -1,16 +1,18 @@
 package com.fourstars.FourStars.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fourstars.FourStars.config.RabbitMQConfig;
 import com.fourstars.FourStars.domain.Comment;
 import com.fourstars.FourStars.domain.CommentAttachment;
 import com.fourstars.FourStars.domain.Post;
@@ -19,6 +21,7 @@ import com.fourstars.FourStars.domain.request.comment.CommentRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.comment.CommentResponseDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
+import com.fourstars.FourStars.messaging.dto.notification.NewReplyMessage;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.PostRepository;
 import com.fourstars.FourStars.repository.UserRepository;
@@ -28,16 +31,19 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class CommentService {
+    private static final Logger logger = LoggerFactory.getLogger(CommentService.class);
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final RabbitTemplate rabbitTemplate;
 
     public CommentService(CommentRepository commentRepository, PostRepository postRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository, RabbitTemplate rabbitTemplate) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
@@ -92,7 +98,9 @@ public class CommentService {
     @Transactional
     public CommentResponseDTO createComment(CommentRequestDTO requestDTO)
             throws ResourceNotFoundException, BadRequestException {
+
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' creating comment for post ID: {}", currentUser.getEmail(), requestDTO.getPostId());
 
         Post post = postRepository.findById(requestDTO.getPostId())
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + requestDTO.getPostId()));
@@ -125,13 +133,45 @@ public class CommentService {
         }
 
         Comment savedComment = commentRepository.save(comment);
-        return convertToCommentResponseDTO(savedComment);
+
+        logger.info("Successfully created comment with ID: {}", savedComment.getId());
+
+        if (savedComment.getParentComment() != null) {
+            NewReplyMessage message = new NewReplyMessage(
+                    savedComment.getParentComment().getUser().getId(),
+                    savedComment.getUser().getId(),
+                    savedComment.getPost().getId(),
+                    savedComment.getId());
+
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.NOTIFICATION_EXCHANGE,
+                    "notification.new.reply",
+                    message);
+
+            logger.info("Sent new reply notification message to RabbitMQ for recipient ID: {}",
+                    message.getRecipientId());
+        }
+
+        CommentResponseDTO commentDTO = convertToCommentResponseDTO(savedComment);
+
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.POST_BROADCAST_EXCHANGE,
+                    RabbitMQConfig.POST_NEW_COMMENT_ROUTING_KEY,
+                    commentDTO);
+            logger.info("Published new comment broadcast event for post ID: {}", post.getId());
+        } catch (Exception e) {
+            logger.error("Failed to publish new comment event for post ID: {}", post.getId(), e);
+        }
+
+        return commentDTO;
     }
 
     @Transactional
     public CommentResponseDTO updateComment(long id, CommentRequestDTO requestDTO)
             throws ResourceNotFoundException, BadRequestException {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' attempting to update comment ID: {}", currentUser.getEmail(), id);
 
         Comment commentDB = commentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + id));
@@ -142,12 +182,16 @@ public class CommentService {
 
         commentDB.setContent(requestDTO.getContent());
         Comment updatedComment = commentRepository.save(commentDB);
+
+        logger.info("Successfully updated comment with ID: {}", id);
+
         return convertToCommentResponseDTO(updatedComment);
     }
 
     @Transactional
     public void deleteComment(long id) throws ResourceNotFoundException, BadRequestException {
         User currentUser = getCurrentAuthenticatedUser();
+        logger.info("User '{}' attempting to delete comment ID: {}", currentUser.getEmail(), id);
 
         Comment commentToDelete = commentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + id));
@@ -158,10 +202,14 @@ public class CommentService {
         }
 
         commentRepository.delete(commentToDelete);
+        logger.info("Successfully deleted comment with ID: {}", id);
+
     }
 
     @Transactional(readOnly = true)
     public ResultPaginationDTO<CommentResponseDTO> fetchCommentsByPost(long postId, Pageable pageable) {
+        logger.debug("Fetching comments for post ID: {}", postId);
+
         Page<Comment> topLevelCommentsPage = commentRepository.findByPostIdAndParentCommentIsNull(postId, pageable);
 
         List<CommentResponseDTO> commentDTOs = topLevelCommentsPage.getContent().stream()
@@ -173,6 +221,8 @@ public class CommentService {
                 pageable.getPageSize(),
                 topLevelCommentsPage.getTotalPages(),
                 topLevelCommentsPage.getTotalElements());
+
+        logger.debug("Found {} top-level comments for post ID: {}", topLevelCommentsPage.getTotalElements(), postId);
 
         return new ResultPaginationDTO<>(meta, commentDTOs);
     }

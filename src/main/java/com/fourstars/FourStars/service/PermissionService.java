@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
 @Service
 public class PermissionService {
+    private static final Logger logger = LoggerFactory.getLogger(PermissionService.class);
+
     private final PermissionRepository permissionRepository;
 
     public PermissionService(PermissionRepository permissionRepository) {
@@ -32,16 +36,22 @@ public class PermissionService {
 
     @Transactional
     public Permission create(Permission permission) throws DuplicateResourceException {
+        logger.info("Attempting to create a new permission: [Method: {}, Path: {}]", permission.getMethod(),
+                permission.getApiPath());
+
         if (this.isPermissionExist(permission)) {
             throw new DuplicateResourceException(
                     "Permission with specified module, API path, and method already exists.");
         }
-
-        return this.permissionRepository.save(permission);
+        Permission savedPermission = this.permissionRepository.save(permission);
+        logger.info("Successfully created new permission with ID: {}", savedPermission.getId());
+        return savedPermission;
     }
 
     @Transactional(readOnly = true)
     public Permission fetchById(long id) {
+        logger.debug("Request to fetch permission with ID: {}", id);
+
         return this.permissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Permission not found with id: " + id));
     }
@@ -49,6 +59,8 @@ public class PermissionService {
     @Transactional
     public Permission update(Permission permissionDetails)
             throws ResourceNotFoundException, DuplicateResourceException {
+        logger.info("Attempting to update permission with ID: {}", permissionDetails.getId());
+
         Permission permissionDB = this.permissionRepository.findById(permissionDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Permission not found with id: " + permissionDetails.getId()));
@@ -73,11 +85,15 @@ public class PermissionService {
         permissionDB.setApiPath(permissionDetails.getApiPath());
         permissionDB.setMethod(permissionDetails.getMethod());
 
-        return this.permissionRepository.save(permissionDB);
+        Permission updatedPermission = this.permissionRepository.save(permissionDB);
+        logger.info("Successfully updated permission with ID: {}", updatedPermission.getId());
+        return updatedPermission;
     }
 
     @Transactional
     public void delete(long id) throws ResourceNotFoundException {
+        logger.info("Attempting to delete permission with ID: {}", id);
+
         Permission permissionToDelete = this.permissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Permission not found with id: " + id));
 
@@ -92,9 +108,14 @@ public class PermissionService {
         }
 
         this.permissionRepository.delete(permissionToDelete);
+        logger.info("Successfully deleted permission with ID: {}", id);
+
     }
 
     public ResultPaginationDTO<PermissionResponseDTO> fetchAll(Pageable pageable) {
+        logger.debug("Request to fetch all permissions for page: {}, size: {}", pageable.getPageNumber(),
+                pageable.getPageSize());
+
         Page<Permission> pagePermission = this.permissionRepository.findAll(pageable);
 
         List<PermissionResponseDTO> permissionDTOs = pagePermission.getContent().stream()

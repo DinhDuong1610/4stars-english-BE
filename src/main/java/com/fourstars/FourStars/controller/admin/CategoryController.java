@@ -27,12 +27,16 @@ import com.fourstars.FourStars.util.error.DuplicateResourceException;
 import com.fourstars.FourStars.util.error.ResourceInUseException;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/categories")
-// @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Bảo vệ toàn bộ controller cho
-// admin
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Category Management API", description = "APIs for managing content categories (Vocabulary, Grammar, etc.)")
 public class CategoryController {
 
     private final CategoryService categoryService;
@@ -41,7 +45,13 @@ public class CategoryController {
         this.categoryService = categoryService;
     }
 
+    @Operation(summary = "Create a new category", description = "Creates a new content category. Can be a top-level or a sub-category.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Category created successfully"),
+            @ApiResponse(responseCode = "409", description = "Category with the same name, type, and parent already exists")
+    })
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Create a new category")
     public ResponseEntity<CategoryResponseDTO> createCategory(@Valid @RequestBody CategoryRequestDTO requestDTO)
             throws ResourceNotFoundException, DuplicateResourceException {
@@ -49,7 +59,13 @@ public class CategoryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newCategory);
     }
 
+    @Operation(summary = "Get a category by ID", description = "Retrieves details of a specific category. Use 'deep=true' to fetch its sub-category tree.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved category"),
+            @ApiResponse(responseCode = "404", description = "Category not found")
+    })
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a category by its ID")
     public ResponseEntity<CategoryResponseDTO> getCategoryById(
             @PathVariable long id,
@@ -59,7 +75,14 @@ public class CategoryController {
         return ResponseEntity.ok(category);
     }
 
+    @Operation(summary = "Update an existing category")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Category updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Bad request (e.g., setting a category as its own parent)"),
+            @ApiResponse(responseCode = "404", description = "Category or parent category not found")
+    })
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Update an existing category")
     public ResponseEntity<CategoryResponseDTO> updateCategory(
             @PathVariable long id,
@@ -69,7 +92,9 @@ public class CategoryController {
         return ResponseEntity.ok(updatedCategory);
     }
 
+    @Operation(summary = "Get top-level categories (paginated)", description = "Retrieves a paginated list of top-level categories (those without a parent).")
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all categories with pagination")
     public ResponseEntity<ResultPaginationDTO<CategoryResponseDTO>> getAllCategories(
             Pageable pageable,
@@ -78,7 +103,9 @@ public class CategoryController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Get all categories as a tree", description = "Retrieves all categories structured as a tree, with pagination applied only to the top-level items.")
     @GetMapping("/tree")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch all categories as a paginated tree structure")
     public ResponseEntity<ResultPaginationDTO<CategoryResponseDTO>> getAllCategoriesAsTree(
             @RequestParam(name = "type", required = false) CategoryType type,
@@ -88,7 +115,14 @@ public class CategoryController {
         return ResponseEntity.ok(categoryTree);
     }
 
+    @Operation(summary = "Delete a category")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Category deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Category not found"),
+            @ApiResponse(responseCode = "409", description = "Cannot delete category because it has sub-categories or contains content")
+    })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Delete a category")
     public ResponseEntity<Void> deleteCategory(@PathVariable long id)
             throws ResourceNotFoundException, ResourceInUseException {

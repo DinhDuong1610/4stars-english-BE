@@ -1,6 +1,11 @@
 package com.fourstars.FourStars.domain.response.auth;
 
-import com.fourstars.FourStars.domain.Role; // Using FourStars Role
+import java.util.List;
+
+import com.fourstars.FourStars.domain.Badge;
+import com.fourstars.FourStars.domain.Permission;
+import com.fourstars.FourStars.domain.Role;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,15 +28,22 @@ public class ResLoginDTO {
         private String name;
         private RoleInfoDTO role;
         private int streakCount;
+        private int point;
+        private BadgeInfoDTO badge;
 
-        public UserLogin(long id, String email, String name, Role roleEntity, int streakCount) {
+        public UserLogin(long id, String email, String name, Role roleEntity, int streakCount, int point,
+                Badge badge) {
             this.id = id;
             this.email = email;
             this.name = name;
             if (roleEntity != null) {
-                this.role = new RoleInfoDTO(roleEntity.getId(), roleEntity.getName());
+                this.role = new RoleInfoDTO(roleEntity.getId(), roleEntity.getName(), roleEntity.getPermissions());
             }
             this.streakCount = streakCount;
+            this.point = point;
+            if (badge != null) {
+                this.badge = new BadgeInfoDTO(badge.getId(), badge.getName(), badge.getImage());
+            }
         }
     }
 
@@ -52,5 +64,16 @@ public class ResLoginDTO {
     public static class RoleInfoDTO {
         private long id;
         private String name;
+        private List<Permission> permissions;
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class BadgeInfoDTO {
+        private long id;
+        private String name;
+        private String image;
     }
 }

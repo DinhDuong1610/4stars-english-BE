@@ -11,6 +11,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class DashboardResponseDTO {
+    private Integer userPoints;
+    private long wordsToReviewCount;
     private int totalVocabulary;
     private Map<Integer, Integer> vocabularyLevelCounts;
     private int totalQuizzesCompleted;
@@ -19,4 +21,5 @@ public class DashboardResponseDTO {
     private BadgeResponseDTO badges;
     private PlanResponseDTO currentPlan;
     private String subscriptionExpiryDate;
+
 }

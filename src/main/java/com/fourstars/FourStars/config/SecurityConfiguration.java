@@ -7,7 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -32,7 +33,7 @@ import com.nimbusds.jose.util.Base64;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(securedEnabled = true)
+@EnableMethodSecurity
 public class SecurityConfiguration {
 
     @Value("${fourstars.jwt.base64-secret}")
@@ -50,16 +51,42 @@ public class SecurityConfiguration {
     }
 
     @Bean
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler(
+            CustomPermissionEvaluator customPermissionEvaluator) {
+        DefaultMethodSecurityExpressionHandler handler = new DefaultMethodSecurityExpressionHandler();
+        handler.setPermissionEvaluator(customPermissionEvaluator);
+        return handler;
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
             CustomAuthenticationEntryPoint customAuthenticationEntryPoint, StreakUpdateFilter streakUpdateFilter)
             throws Exception {
         String[] whiteList = {
                 "/api/v1/auth/login",
+                "/api/v1/auth/google",
                 "/api/v1/auth/register",
                 "/api/v1/auth/refresh",
-                "/uploads/**"
-                // Thêm các endpoint public khác nếu có (ví dụ: Swagger UI, health check)
-                // "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+                "/api/v1/auth/forgot-password",
+                "/api/v1/auth/reset-password",
+                "/api/v1/articles/**",
+                "/api/v1/badges/**",
+                "/api/v1/categories/**",
+                "/api/v1/comments/**",
+                "/api/v1/files/**",
+                "/api/v1/grammars/**",
+                "/api/v1/leaderboard/**",
+                "/api/v1/payments/vnpay/ipn",
+                "/api/v1/payments/vnpay/return",
+                "/api/v1/plans/**",
+                "/api/v1/posts",
+                "/api/v1/posts/{id}",
+                "/uploads/**",
+                "/api/v1/videos/**",
+                "/api/v1/vocabularies",
+                "/api/v1/vocabularies/{id}",
+                "/ws/**",
+                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
         };
 
         http
@@ -68,20 +95,13 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
-                                // .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN") // Ví dụ,
-                                // hoặc dùng
-                                // hasRole("ADMIN") nếu
-                                // prefix là "ROLE_"
+                                .requestMatchers("/actuator/**").hasAuthority("ROLE_ADMIN")
+                                .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
                                 .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2 // oauth2 ở đây là OAuth2ResourceServerConfigurer
-                        .jwt(jwt -> jwt // jwt ở đây là JwtConfigurer
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter()) // Gọi trên JwtConfigurer
-                                                                                          // (jwt)
-                        )
-                        .authenticationEntryPoint(customAuthenticationEntryPoint) // Gọi trên
-                                                                                  // OAuth2ResourceServerConfigurer
-                                                                                  // (oauth2)
-                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                        .authenticationEntryPoint(customAuthenticationEntryPoint))
                 .formLogin(f -> f.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
@@ -93,11 +113,8 @@ public class SecurityConfiguration {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); // Thường thì prefix là "ROLE_"
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("permission"); // Đảm bảo claim 'permission' chứa
-                                                                           // roles/authorities
-        // Nếu claim 'permission' chứa authorities không có prefix "ROLE_", thì
-        // setAuthorityPrefix("")
+        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("permission");
 
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);

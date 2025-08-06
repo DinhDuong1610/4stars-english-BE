@@ -1,6 +1,9 @@
 package com.fourstars.FourStars.controller.admin;
 
+import java.time.LocalDate;
+
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,8 +20,16 @@ import com.fourstars.FourStars.util.annotation.ApiMessage;
 import com.fourstars.FourStars.util.constant.PaymentStatus;
 import com.fourstars.FourStars.util.error.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/v1/admin/subscriptions")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin - Subscription Management API", description = "APIs for creating and managing user subscriptions")
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
@@ -27,10 +38,13 @@ public class SubscriptionController {
         this.subscriptionService = subscriptionService;
     }
 
-    // Endpoint để admin xác nhận thanh toán (thường là webhook từ cổng thanh toán)
+    @Operation(summary = "Confirm a subscription payment", description = "Manually updates the payment status of a subscription. Can also be used as a webhook target.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment status updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
     @PostMapping("/confirm-payment/{subscriptionId}")
-    // @PreAuthorize("hasAuthority('ROLE_ADMIN') or
-    // hasAuthority('SYSTEM_PAYMENT_GATEWAY')") // Bảo vệ endpoint này
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<SubscriptionResponseDTO> confirmPayment(
             @PathVariable long subscriptionId,
             @RequestParam String transactionId,
@@ -40,21 +54,28 @@ public class SubscriptionController {
         return ResponseEntity.ok(updatedSubscription);
     }
 
+    @Operation(summary = "Get a subscription by ID", description = "Allows an admin to retrieve any subscription by its ID.")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("Fetch a subscription by its ID")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SubscriptionResponseDTO> getSubscriptionById(@PathVariable long id)
             throws ResourceNotFoundException {
         SubscriptionResponseDTO subscription = subscriptionService.fetchSubscriptionById(id);
         return ResponseEntity.ok(subscription);
     }
 
+    @Operation(summary = "Get all subscriptions", description = "Retrieves a paginated list of all subscriptions in the system.")
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @ApiMessage("ADMIN: Fetch all subscriptions with pagination")
-    // @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getAllSubscriptionsAsAdmin(Pageable pageable) {
+    public ResponseEntity<ResultPaginationDTO<SubscriptionResponseDTO>> getAllSubscriptionsAsAdmin(Pageable pageable,
+            @Parameter(description = "Filter by User ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "Filter by Plan ID") @RequestParam(required = false) Long planId,
+            @Parameter(description = "Filter by Payment Status (PENDING, PAID, FAILED)") @RequestParam(required = false) PaymentStatus paymentStatus,
+            @Parameter(description = "Filter by start date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "Filter by end date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         ResultPaginationDTO<SubscriptionResponseDTO> result = subscriptionService
-                .fetchAllSubscriptionsAsAdmin(pageable);
+                .fetchAllSubscriptionsAsAdmin(pageable, userId, planId, paymentStatus, startDate, endDate);
         return ResponseEntity.ok(result);
     }
 

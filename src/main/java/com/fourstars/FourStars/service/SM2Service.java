@@ -3,6 +3,9 @@ package com.fourstars.FourStars.service;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -10,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 
 @Service
 public class SM2Service {
+    private static final Logger logger = LoggerFactory.getLogger(SM2Service.class);
 
     @Getter
     @Setter
@@ -32,17 +36,18 @@ public class SM2Service {
     }
 
     public SM2Result calculate(SM2InputData data) {
+        logger.debug("Calculating SM2 with input: repetitions={}, easeFactor={}, interval={}, quality={}",
+                data.getRepetitions(), data.getEaseFactor(), data.getInterval(), data.getQuality());
+
         int repetitions = data.getRepetitions();
         double easeFactor = data.getEaseFactor();
         int interval = data.getInterval();
         int quality = data.getQuality();
 
         if (quality < 3) {
-            // Nếu trả lời sai, reset số lần lặp lại và khoảng thời gian
             repetitions = 0;
             interval = 1;
         } else {
-            // Nếu trả lời đúng
             repetitions++;
             if (repetitions == 1) {
                 interval = 1;
@@ -53,25 +58,18 @@ public class SM2Service {
             }
         }
 
-        // Cập nhật hệ số dễ (Ease Factor)
         easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
         if (easeFactor < 1.3) {
             easeFactor = 1.3;
         }
 
-        // Tính toán cấp độ mới dựa trên khoảng thời gian ôn tập (interval)
         int newLevel = calculateLevel(interval);
 
-        // Tính ngày ôn tập tiếp theo
         Instant nextReviewDate = Instant.now().plus(interval, ChronoUnit.DAYS);
 
         return new SM2Result(repetitions, easeFactor, interval, newLevel, nextReviewDate);
     }
 
-    /**
-     * Ánh xạ khoảng thời gian ôn tập (interval) sang cấp độ (level).
-     * Bạn có thể điều chỉnh các ngưỡng này cho phù hợp với ứng dụng của mình.
-     */
     private int calculateLevel(int intervalInDays) {
         if (intervalInDays <= 1) {
             return 1; // Mới học
