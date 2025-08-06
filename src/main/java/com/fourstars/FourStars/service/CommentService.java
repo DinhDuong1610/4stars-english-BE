@@ -152,7 +152,19 @@ public class CommentService {
                     message.getRecipientId());
         }
 
-        return convertToCommentResponseDTO(savedComment);
+        CommentResponseDTO commentDTO = convertToCommentResponseDTO(savedComment);
+
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.POST_BROADCAST_EXCHANGE,
+                    RabbitMQConfig.POST_NEW_COMMENT_ROUTING_KEY,
+                    commentDTO);
+            logger.info("Published new comment broadcast event for post ID: {}", post.getId());
+        } catch (Exception e) {
+            logger.error("Failed to publish new comment event for post ID: {}", post.getId(), e);
+        }
+
+        return commentDTO;
     }
 
     @Transactional

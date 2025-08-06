@@ -20,6 +20,7 @@ import com.fourstars.FourStars.domain.request.post.PostRequestDTO;
 import com.fourstars.FourStars.domain.response.ResultPaginationDTO;
 import com.fourstars.FourStars.domain.response.post.PostResponseDTO;
 import com.fourstars.FourStars.messaging.dto.notification.NewLikeMessage;
+import com.fourstars.FourStars.messaging.dto.post.PostLikeUpdateMessage;
 import com.fourstars.FourStars.repository.CommentRepository;
 import com.fourstars.FourStars.repository.LikeRepository;
 import com.fourstars.FourStars.repository.PostRepository;
@@ -259,6 +260,7 @@ public class PostService {
                 message);
         logger.info("Sent new_like notification message to RabbitMQ for recipient ID: {}", post.getUser().getId());
 
+        publishLikeUpdateEvent(post, true);
     }
 
     @Transactional
@@ -273,8 +275,22 @@ public class PostService {
         Like like = likeRepository.findByUserIdAndPostId(currentUser.getId(), postId)
                 .orElseThrow(() -> new ResourceNotFoundException("You have not liked this post."));
 
+        Post post = like.getPost();
+
         likeRepository.delete(like);
         logger.info("User '{}' successfully unliked post ID: {}", currentUser.getEmail(), postId);
 
+        publishLikeUpdateEvent(post, false);
+    }
+
+    private void publishLikeUpdateEvent(Post post, boolean isLiked) {
+        long totalLikes = likeRepository.countByPostId(post.getId());
+        PostLikeUpdateMessage updateMessage = new PostLikeUpdateMessage(post.getId(), totalLikes, isLiked);
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.POST_BROADCAST_EXCHANGE,
+                RabbitMQConfig.POST_LIKE_UPDATE_ROUTING_KEY,
+                updateMessage);
+        logger.info("Published like update event for post ID {}. New count: {}", post.getId(), totalLikes);
     }
 }
