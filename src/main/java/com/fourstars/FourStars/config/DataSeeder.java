@@ -49,12 +49,10 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         logger.info("========== STARTING DATA SEEDING PROCESS ==========");
 
-        // --- 1. Tạo Roles ---
         Role adminRole = createRoleIfNotFound("ADMIN", "Quản trị viên hệ thống");
         Role premiumRole = createRoleIfNotFound("PREMIUM", "Người dùng trả phí");
         Role userRole = createRoleIfNotFound("USER", "Người dùng thường");
 
-        // --- 2. Tạo Permissions từ tất cả các API endpoints ---
         if (permissionRepository.count() == 0) {
             logger.info("No permissions found, creating them from API endpoints...");
             createPermissions();
@@ -63,7 +61,6 @@ public class DataSeeder implements CommandLineRunner {
 
         }
 
-        // --- 3. Gán tất cả Permissions cho ADMIN ---
         if (adminRole != null && (adminRole.getPermissions() == null || adminRole.getPermissions().isEmpty())) {
             logger.info("Assigning all permissions to ADMIN role...");
             List<Permission> allPermissions = permissionRepository.findAll();
@@ -76,7 +73,6 @@ public class DataSeeder implements CommandLineRunner {
 
         }
 
-        // --- 4. Tạo User Admin mặc định ---
         if (userRepository.count() == 0) {
             logger.info("No users found, creating default ADMIN user...");
             User adminUser = new User();
@@ -117,19 +113,15 @@ public class DataSeeder implements CommandLineRunner {
                 .entrySet()) {
             RequestMappingInfo mappingInfo = entry.getKey();
 
-            // Lấy các phương thức HTTP (GET, POST, ...)
             Set<RequestMethod> methods = mappingInfo.getMethodsCondition().getMethods();
             if (methods.isEmpty()) {
                 continue;
             }
 
-            // Lấy các patterns URL, ưu tiên cơ chế mới (PathPattern)
             Set<String> patterns = new HashSet<>();
             if (mappingInfo.getPathPatternsCondition() != null) {
                 patterns = mappingInfo.getPathPatternsCondition().getPatternValues();
-            }
-            // Nếu không có, fallback về cơ chế cũ
-            else if (mappingInfo.getPatternsCondition() != null) {
+            } else if (mappingInfo.getPatternsCondition() != null) {
                 patterns = mappingInfo.getPatternsCondition().getPatterns();
             }
 
@@ -140,12 +132,10 @@ public class DataSeeder implements CommandLineRunner {
             String path = patterns.iterator().next();
             String method = methods.iterator().next().name();
 
-            // Bỏ qua các endpoint không cần phân quyền
             if (path.startsWith("/error") || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
                 continue;
             }
 
-            // Tạo một chuỗi duy nhất để tránh trùng lặp permission
             String permissionIdentifier = method + ":" + path;
             if (uniquePermissions.contains(permissionIdentifier)) {
                 continue;
@@ -163,8 +153,6 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private String extractModuleFromPath(String path) {
-        // Logic đơn giản để trích xuất tên module từ path
-        // Ví dụ: /api/v1/admin/users -> Users
         String[] parts = path.split("/");
         if (parts.length > 3) {
             String moduleName = parts[3];

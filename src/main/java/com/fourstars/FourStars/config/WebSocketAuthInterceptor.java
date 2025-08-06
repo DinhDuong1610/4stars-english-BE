@@ -33,11 +33,9 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        // Chỉ kiểm tra khi client gửi lệnh CONNECT
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             logger.debug("Intercepting STOMP CONNECT command for session ID: {}", accessor.getSessionId());
 
-            // Lấy token từ header "Authorization"
             List<String> authorization = accessor.getNativeHeader("Authorization");
             if (authorization == null || authorization.isEmpty()) {
                 logger.warn("WebSocket CONNECT request for session ID {} without 'Authorization' header.",
@@ -54,9 +52,6 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
                 try {
                     Jwt jwt = jwtDecoder.decode(token);
-                    // UsernamePasswordAuthenticationToken authentication =
-                    // (UsernamePasswordAuthenticationToken) jwtAuthenticationConverter
-                    // .convert(jwt);
 
                     Authentication authentication = jwtAuthenticationConverter.convert(jwt);
 

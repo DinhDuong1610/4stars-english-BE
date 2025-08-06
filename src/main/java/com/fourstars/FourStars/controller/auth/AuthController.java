@@ -83,7 +83,6 @@ public class AuthController {
 
                 Authentication authentication;
                 try {
-                        // Ưu tiên dùng authenticationManager nếu đã inject
                         if (this.authenticationManager != null) {
                                 authentication = authenticationManager.authenticate(authenticationToken);
                         } else {

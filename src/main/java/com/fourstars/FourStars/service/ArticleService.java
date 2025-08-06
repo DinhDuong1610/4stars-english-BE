@@ -129,7 +129,7 @@ public class ArticleService {
         }
 
         articleDB.setTitle(requestDTO.getTitle());
-        articleDB.setContent(sanitizeHtmlContent(requestDTO.getContent())); // Làm sạch HTML
+        articleDB.setContent(sanitizeHtmlContent(requestDTO.getContent()));
         articleDB.setImage(requestDTO.getImage());
         articleDB.setAudio(requestDTO.getAudio());
         articleDB.setCategory(category);

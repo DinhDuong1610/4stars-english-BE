@@ -695,10 +695,8 @@ public class UserService implements UserDetailsService {
 
         DashboardResponseDTO dashboard = new DashboardResponseDTO();
 
-        // Tổng số từ vựng trong sổ tay
         dashboard.setTotalVocabulary(userVocabularyRepository.countByUser(currentUser));
 
-        // Số lượng từ ở mỗi cấp độ SM-2
         Map<Integer, Integer> levelCounts = new HashMap<>();
         List<UserVocabulary> userVocabularies = userVocabularyRepository.findByUser(currentUser);
         for (UserVocabulary uv : userVocabularies) {
@@ -706,29 +704,22 @@ public class UserService implements UserDetailsService {
         }
         dashboard.setVocabularyLevelCounts(levelCounts);
 
-        // Số bài quiz đã hoàn thành
         dashboard.setTotalQuizzesCompleted(userQuizAttemptRepository.countByUser(currentUser));
 
-        // Điểm số trung bình của các bài quiz
         Double averageScore = userQuizAttemptRepository.calculateAverageScoreByUser(currentUser);
         dashboard.setAverageQuizScore(averageScore != null ? averageScore : 0.0);
 
-        // Chuỗi ngày học hiện tại
         dashboard.setCurrentStreak(currentUser.getStreakCount() != null ? currentUser.getStreakCount() : 0);
 
-        // Huy hiệu đã đạt được
         if (currentUser.getBadge() != null) {
             dashboard.setBadges(this.convertToBadgeResponseDTO(currentUser.getBadge()));
         }
 
-        // Lấy tổng điểm của user
         dashboard.setUserPoints(currentUser.getPoint() != 0 ? currentUser.getPoint() : 0);
 
-        // Lấy tổng số từ cần ôn tập
         long reviewCount = userVocabularyRepository.countByUserAndNextReviewAtBefore(currentUser, Instant.now());
         dashboard.setWordsToReviewCount(reviewCount);
 
-        // Trạng thái gói học phí
         Subscription currentSubscription = subscriptionRepository.findTopByUserOrderByEndDateDesc(currentUser)
                 .orElse(null);
         if (currentSubscription != null && currentSubscription.getEndDate().isAfter(Instant.now())

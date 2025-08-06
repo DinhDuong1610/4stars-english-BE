@@ -30,15 +30,11 @@ public class ScheduledTaskService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    /**
-     * Tác vụ này sẽ tự động chạy vào 8 giờ sáng mỗi ngày (theo giờ Việt Nam).
-     */
     @Scheduled(cron = "${myapp.scheduling.reminders.cron}", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public void sendReviewReminders() {
         logger.info("==================== Running scheduled task: Sending review reminders... ====================");
 
-        // 1. Tìm tất cả người dùng có từ vựng cần ôn tập
         List<User> usersToNotify = userVocabularyRepository.findUsersWithPendingReviews(Instant.now());
         if (usersToNotify.isEmpty()) {
             logger.info("No users with pending reviews found. Task finished.");
@@ -49,11 +45,9 @@ public class ScheduledTaskService {
         logger.debug("User IDs to be notified: {}",
                 usersToNotify.stream().map(User::getId).collect(Collectors.toList()));
 
-        // 2. Lặp qua từng người dùng và gửi thông báo tổng hợp
         for (User user : usersToNotify) {
             logger.debug("Processing user ID: {}. Counting overdue vocabularies...", user.getId());
 
-            // Đếm chính xác số từ cần ôn tập của user này
             long reviewCount = user.getUserVocabularies().stream()
                     .filter(uv -> uv.getNextReviewAt() != null && uv.getNextReviewAt().isBefore(Instant.now()))
                     .count();

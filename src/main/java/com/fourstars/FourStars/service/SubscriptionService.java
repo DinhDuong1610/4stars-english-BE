@@ -155,7 +155,6 @@ public class SubscriptionService {
         Subscription subscription = subscriptionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with id: " + id));
 
-        // Chỉ admin hoặc chủ sở hữu subscription mới được xem
         if (!subscription.getUser().getEmail().equals(currentUserEmail)
                 && userRepository.findByEmail(currentUserEmail).get().getRole().getName() != "ADMIN") {
             throw new ResourceNotFoundException("You do not have permission to view this subscription.");
