@@ -23,7 +23,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Ví dụ: new SockJS("http://localhost:8080/ws")
         registry.addEndpoint("/ws")
                 // Cho phép các domain của frontend kết nối tới
-                .setAllowedOrigins("http://localhost:3000", "http://localhost:4173", "http://localhost:5173")
+                .setAllowedOrigins("http://localhost:3000", "http://localhost:4173", "http://localhost:5173",
+                        "https://fourstars.tech", "https://www.fourstars.tech")
                 // Dùng SockJS để hỗ trợ các trình duyệt cũ không hỗ trợ WebSocket thuần.
                 .withSockJS();
     }

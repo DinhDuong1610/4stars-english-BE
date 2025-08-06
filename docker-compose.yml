@@ -41,6 +41,13 @@ services:
       - app-network
     restart: unless-stopped
 
+  nlp-api:
+    container_name: fourstars-nlp-api
+    build: ./fourstars_dication
+    networks:
+      - app-network
+    restart: unless-stopped
+
   app:
     image: dinhduong1610/fourstars-app:latest
     container_name: fourstars-app
@@ -50,6 +57,8 @@ services:
       redis:
         condition: service_started
       rabbitmq:
+        condition: service_started
+      nlp-api:
         condition: service_started
     ports:
       - "8080:8080"
